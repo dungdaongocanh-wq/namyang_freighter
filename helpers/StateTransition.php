@@ -187,13 +187,13 @@ class StateTransition
 
             case 'customer_signature':
                 // Giao hàng xong → báo KT và admin
-                NotificationHelper::notifyRole('kt', "Lô hàng {$hawb} đã giao thành công, cần kiểm tra chi phí", $shipmentId);
+                NotificationHelper::notifyRole('accounting', "Lô hàng {$hawb} đã giao thành công, cần kiểm tra chi phí", $shipmentId);
                 NotificationHelper::notifyRole('admin', "Lô hàng {$hawb} đã giao hàng", $shipmentId);
                 break;
 
             case 'auto_to_kt':
                 // Chuyển sang KT xem xét
-                NotificationHelper::notifyRole('kt', "Lô hàng {$hawb} chờ KT xem xét chi phí", $shipmentId);
+                NotificationHelper::notifyRole('accounting', "Lô hàng {$hawb} chờ KT xem xét chi phí", $shipmentId);
                 break;
 
             case 'kt_push_customer':
@@ -203,12 +203,12 @@ class StateTransition
 
             case 'customer_approve':
                 // Khách duyệt → báo KT
-                NotificationHelper::notifyRole('kt', "Khách hàng đã phê duyệt chi phí lô hàng {$hawb}", $shipmentId);
+                NotificationHelper::notifyRole('accounting', "Khách hàng đã phê duyệt chi phí lô hàng {$hawb}", $shipmentId);
                 break;
 
             case 'customer_reject':
                 // Khách từ chối → báo KT
-                NotificationHelper::notifyRole('kt', "Khách hàng từ chối chi phí lô hàng {$hawb}, cần xem lại", $shipmentId);
+                NotificationHelper::notifyRole('accounting', "Khách hàng từ chối chi phí lô hàng {$hawb}, cần xem lại", $shipmentId);
                 break;
 
             case 'kt_resubmit':

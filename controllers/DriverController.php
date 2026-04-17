@@ -113,7 +113,7 @@ class DriverController {
     }
 
     // ===== HIỆN TRANG CHỮ KÝ =====
-    public function showSignature() {
+    public function signature() {
         $db         = getDB();
         $shipmentId = (int)($_GET['shipment_id'] ?? 0);
         $tripId     = (int)($_GET['trip_id'] ?? 0);

@@ -7,7 +7,7 @@ class CustomerController {
         $customerId = $_SESSION['customer_id'];
 
         $stats = [
-            'total'            => $db->prepare("SELECT COUNT(*) FROM shipments WHERE customer_id=?")->execute([$customerId]) ? 0 : 0,
+            'total'            => 0,
             'pending_customs'  => 0,
             'in_transit'       => 0,
             'pending_approval' => 0,

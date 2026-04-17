@@ -128,6 +128,12 @@ case 'cs.delete_customs_record':
         $controller->signature();
         break;
 
+    case 'driver.save_signature':
+        requireRole('driver', 'admin');
+        $controller = new DriverController();
+        $controller->saveSignature();
+        break;
+
     case 'driver.delivery_confirm':
         requireRole('driver', 'admin');
         $controller = new DriverController();
@@ -279,6 +285,11 @@ case 'admin.settings':
     case 'notifications.read':
         $controller = new NotificationController();
         $controller->markRead();
+        break;
+
+    case 'notifications.mark_all_read':
+        $controller = new NotificationController();
+        $controller->markAllRead();
         break;
 
     default:
