@@ -44,6 +44,10 @@ case 'cs.customs_upload':
     requireRole(['cs', 'admin']);
     (new ShipmentController())->customsUpload();
     break;
+case 'cs.delete_customs':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->deleteCustoms();
+    break;
 
 case 'cs.edit_shipment':
     requireRole(['cs', 'admin']);
@@ -59,42 +63,50 @@ case 'cs.delete_shipment':
     requireRole(['cs', 'admin']);
     (new ShipmentController())->deleteShipment();
     break;
+case 'cs.delete_customs_record':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->deleteCustomsRecord();
+    break;
 
-    // ===== OPS =====
+       // ===== OPS =====
     case 'ops.dashboard':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->dashboard();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->dashboard();
         break;
 
     case 'ops.pickup':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->pickup();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->pickup();
+        break;
+
+    case 'ops.shipment_list':          // ← THÊM
+        requireRole(['ops', 'admin']);
+        (new OpsController())->shipmentList();
         break;
 
     case 'ops.trip':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->trip();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->trip();
+        break;
+
+    case 'ops.create_trip':            // ← THÊM
+        requireRole(['ops', 'admin']);
+        (new OpsController())->createTrip();
         break;
 
     case 'ops.costs':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->costs();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->costs();
         break;
 
     case 'ops.complete':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->complete();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->complete();
         break;
 
     case 'ops.download_customs':
-        requireRole('ops', 'admin');
-        $controller = new OpsController();
-        $controller->downloadCustoms();
+        requireRole(['ops', 'admin']);
+        (new OpsController())->downloadCustoms();
         break;
 
     // ===== Driver =====

@@ -3,11 +3,11 @@ class ShipmentController {
 
     // ===== CS DASHBOARD =====
     public function csDashboard() {
-        $db = getDB();
+        $db    = getDB();
         $today = date('Y-m-d');
 
         $stats = [
-            'today'           => $db->query("SELECT COUNT(*) FROM shipments WHERE import_date='$today'")->fetchColumn(),
+            'today'           => $db->query("SELECT COUNT(*) FROM shipments WHERE DATE(created_at)='$today'")->fetchColumn(),
             'pending_customs' => $db->query("SELECT COUNT(*) FROM shipments WHERE status='pending_customs'")->fetchColumn(),
             'cleared'         => $db->query("SELECT COUNT(*) FROM shipments WHERE status='cleared'")->fetchColumn(),
             'waiting_pickup'  => $db->query("SELECT COUNT(*) FROM shipments WHERE status='waiting_pickup'")->fetchColumn(),
@@ -17,11 +17,10 @@ class ShipmentController {
             SELECT s.*, c.company_name
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
-            WHERE s.import_date = ?
             ORDER BY s.id DESC
             LIMIT 20
         ");
-        $stmt->execute([$today]);
+        $stmt->execute();
         $todayShipments = $stmt->fetchAll();
 
         $viewTitle = 'CS Dashboard';
@@ -38,8 +37,8 @@ class ShipmentController {
 
         if (!empty($_GET['search'])) {
             $where[]  = "(s.hawb LIKE ? OR s.mawb LIKE ? OR s.customer_code LIKE ?)";
-            $kw = '%' . $_GET['search'] . '%';
-            $params = array_merge($params, [$kw, $kw, $kw]);
+            $kw       = '%' . $_GET['search'] . '%';
+            $params   = array_merge($params, [$kw, $kw, $kw]);
         }
         if (!empty($_GET['status'])) {
             $where[]  = "s.status = ?";
@@ -104,6 +103,7 @@ class ShipmentController {
                     if (!in_array($ext, ['xlsx', 'xls'])) {
                         $error = 'Chỉ chấp nhận file .xlsx hoặc .xls!';
                     } else {
+                        if (!is_dir(UPLOAD_PATH . 'imports/')) mkdir(UPLOAD_PATH . 'imports/', 0777, true);
                         $tmpPath = UPLOAD_PATH . 'imports/' . uniqid('import_') . '.' . $ext;
                         move_uploaded_file($file['tmp_name'], $tmpPath);
                         $_SESSION['import_tmp_file'] = $tmpPath;
@@ -143,87 +143,138 @@ class ShipmentController {
         include __DIR__ . '/../views/layouts/main.php';
     }
 
+    // ===== UPLOAD TỜ KHAI CUSTOMS =====
     public function customsUpload() {
-    $db      = getDB();
-    $error   = null;
+        $db    = getDB();
+        $error = null;
 
-    // Lấy TẤT CẢ lô chưa giao, kèm thông tin customs nếu có
-    $stmt = $db->query("
-        SELECT s.id, s.hawb, s.customer_code, s.mawb, s.flight_no,
-               s.eta, s.active_date, s.status,
-               GROUP_CONCAT(sc.id ORDER BY sc.id SEPARATOR ',')        as cd_ids,
-               GROUP_CONCAT(sc.cd_number ORDER BY sc.id SEPARATOR ', ') as cd_numbers,
-               COUNT(sc.id)                                             as cd_count,
-               SUM(CASE WHEN sc.file_path IS NOT NULL THEN 1 ELSE 0 END) as uploaded_count
-        FROM shipments s
-        LEFT JOIN shipment_customs sc ON s.id = sc.shipment_id
-        WHERE s.status NOT IN ('delivered', 'invoiced')
-        GROUP BY s.id
-        ORDER BY s.active_date DESC
-        LIMIT 200
-    ");
-    $shipments = $stmt->fetchAll();
+        // Load danh sách lô kèm chi tiết từng customs record
+        $stmt = $db->query("
+            SELECT s.id, s.hawb, s.customer_code, s.mawb, s.flight_no,
+                   s.eta, s.active_date, s.status,
+                   GROUP_CONCAT(sc.id          ORDER BY sc.id SEPARATOR ',')   as cd_ids,
+                   GROUP_CONCAT(sc.cd_number   ORDER BY sc.id SEPARATOR '|||') as cd_numbers,
+                   GROUP_CONCAT(IFNULL(sc.file_path,'') ORDER BY sc.id SEPARATOR '|||') as cd_files,
+                   COUNT(sc.id)                                                 as cd_count,
+                   SUM(CASE WHEN sc.file_path IS NOT NULL THEN 1 ELSE 0 END)   as uploaded_count
+            FROM shipments s
+            LEFT JOIN shipment_customs sc ON s.id = sc.shipment_id
+            WHERE s.status NOT IN ('delivered', 'invoiced')
+            GROUP BY s.id
+            ORDER BY s.active_date DESC
+            LIMIT 200
+        ");
+        $shipments = $stmt->fetchAll();
 
-    // Xử lý upload
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['customs_file'])) {
-        $shipmentId = (int)($_POST['shipment_id'] ?? 0);
-        $cdNumber   = trim($_POST['cd_number'] ?? '');
-        $file       = $_FILES['customs_file'];
+        // Xử lý upload
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['customs_file'])) {
+            $shipmentId = (int)($_POST['shipment_id'] ?? 0);
+            $cdNumber   = trim($_POST['cd_number'] ?? '');
+            $file       = $_FILES['customs_file'];
 
-        if ($file['error'] === UPLOAD_ERR_OK && $shipmentId) {
-            $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowed = ['pdf','jpg','jpeg','png'];
+            if ($file['error'] === UPLOAD_ERR_OK && $shipmentId) {
+                $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowed = ['pdf', 'jpg', 'jpeg', 'png'];
 
-            if (!in_array($ext, $allowed)) {
-                $error = 'Chỉ chấp nhận PDF, JPG, PNG!';
-            } else {
-                // Tạo hoặc lấy record customs
-                $cdStmt = $db->prepare("SELECT id FROM shipment_customs WHERE shipment_id=? AND cd_number=?");
-                $cdStmt->execute([$shipmentId, $cdNumber]);
-                $cdRow = $cdStmt->fetch();
-
-                if (!$cdRow) {
-                    // Tạo mới
-                    $db->prepare("INSERT INTO shipment_customs (shipment_id, cd_number) VALUES (?,?)")
-                       ->execute([$shipmentId, $cdNumber]);
-                    $cdId = $db->lastInsertId();
+                if (!in_array($ext, $allowed)) {
+                    $error = 'Chỉ chấp nhận PDF, JPG, PNG!';
                 } else {
-                    $cdId = $cdRow['id'];
+                    // Tìm record cũ nếu có (để xóa file cũ khi đính kèm lại)
+                    $cdStmt = $db->prepare("SELECT id, file_path FROM shipment_customs WHERE shipment_id=? AND cd_number=?");
+                    $cdStmt->execute([$shipmentId, $cdNumber]);
+                    $cdRow = $cdStmt->fetch();
+
+                    if (!$cdRow) {
+                        // Tạo mới
+                        $db->prepare("INSERT INTO shipment_customs (shipment_id, cd_number) VALUES (?,?)")
+                           ->execute([$shipmentId, $cdNumber]);
+                        $cdId = $db->lastInsertId();
+                    } else {
+                        $cdId = $cdRow['id'];
+                        // Xóa file cũ nếu có
+                        if (!empty($cdRow['file_path'])) {
+                            @unlink(__DIR__ . '/../' . $cdRow['file_path']);
+                        }
+                    }
+
+                    // Lưu file mới
+                    $filename = 'cd_' . $cdId . '_' . time() . '.' . $ext;
+                    $destPath = UPLOAD_PATH . 'customs/' . $filename;
+
+                    if (!is_dir(UPLOAD_PATH . 'customs/')) {
+                        mkdir(UPLOAD_PATH . 'customs/', 0777, true);
+                    }
+
+                    move_uploaded_file($file['tmp_name'], $destPath);
+
+                    $db->prepare("UPDATE shipment_customs SET file_path=?, uploaded_by=?, uploaded_at=NOW() WHERE id=?")
+                       ->execute(['uploads/customs/' . $filename, $_SESSION['user_id'], $cdId]);
+
+                    header('Location: ' . BASE_URL . '/?page=cs.customs_upload&msg=saved');
+                    exit;
                 }
-
-                // Lưu file
-                $filename = 'cd_' . $cdId . '_' . time() . '.' . $ext;
-                $destPath = UPLOAD_PATH . 'customs/' . $filename;
-
-                if (!is_dir(UPLOAD_PATH . 'customs/')) {
-                    mkdir(UPLOAD_PATH . 'customs/', 0777, true);
-                }
-
-                move_uploaded_file($file['tmp_name'], $destPath);
-
-                $db->prepare("UPDATE shipment_customs SET file_path=?, uploaded_by=?, uploaded_at=NOW() WHERE id=?")
-                   ->execute(['uploads/customs/' . $filename, $_SESSION['user_id'], $cdId]);
-
-                header('Location: ' . BASE_URL . '/?page=cs.customs_upload&msg=saved');
-                exit;
+            } else {
+                $error = 'Vui lòng chọn file và lô hàng hợp lệ!';
             }
-        } else {
-            $error = 'Vui lòng chọn file và lô hàng hợp lệ!';
         }
+
+        $viewTitle = 'Upload tờ khai';
+        $viewFile  = __DIR__ . '/../views/cs/customs_upload.php';
+        include __DIR__ . '/../views/layouts/main.php';
     }
 
-    $viewTitle = 'Upload tờ khai';
-    $viewFile  = __DIR__ . '/../views/cs/customs_upload.php';
-    include __DIR__ . '/../views/layouts/main.php';
+    // ===== DELETE CUSTOMS FILE =====
+    public function deleteCustoms() {
+        $db  = getDB();
+        $id  = (int)($_POST['cd_id']      ?? 0);
+
+        if ($id) {
+            // Lấy đường dẫn file cũ
+            $row = $db->prepare("SELECT file_path FROM shipment_customs WHERE id=?");
+            $row->execute([$id]);
+            $old = $row->fetch();
+
+            // Xóa file vật lý
+            if ($old && !empty($old['file_path'])) {
+                @unlink(__DIR__ . '/../' . $old['file_path']);
+            }
+
+            // Clear file_path trong DB (giữ lại record + cd_number)
+            $db->prepare("UPDATE shipment_customs SET file_path=NULL, uploaded_by=NULL, uploaded_at=NULL WHERE id=?")
+               ->execute([$id]);
+        }
+
+        header('Location: ' . BASE_URL . '/?page=cs.customs_upload&msg=deleted');
+        exit;
+    }
+// ===== DELETE CUSTOMS RECORD (xóa cả số tờ khai) =====
+public function deleteCustomsRecord() {
+    $db = getDB();
+    $id = (int)($_POST['cd_id'] ?? 0);
+
+    if ($id) {
+        // Xóa file vật lý nếu có
+        $row = $db->prepare("SELECT file_path FROM shipment_customs WHERE id=?");
+        $row->execute([$id]);
+        $old = $row->fetch();
+        if ($old && !empty($old['file_path'])) {
+            @unlink(__DIR__ . '/../' . $old['file_path']);
+        }
+        // Xóa hẳn record
+        $db->prepare("DELETE FROM shipment_customs WHERE id=?")->execute([$id]);
+    }
+
+    header('Location: ' . BASE_URL . '/?page=cs.customs_upload&msg=deleted');
+    exit;
 }
 
     // ===== SAVE NOTE =====
     public function saveNote() {
         header('Content-Type: application/json');
         $db   = getDB();
-        $id   = (int)($_POST['id'] ?? 0);
-        $note = trim($_POST['note'] ?? '');
-        $db->prepare("UPDATE shipments SET customer_note=?, updated_at=NOW() WHERE id=?")
+        $id   = (int)($_POST['id']   ?? 0);
+        $note = trim($_POST['note']  ?? '');
+        $db->prepare("UPDATE shipments SET remark=?, updated_at=NOW() WHERE id=?")
            ->execute([$note, $id]);
         echo json_encode(['success' => true]);
         exit;
@@ -282,61 +333,93 @@ class ShipmentController {
             exit;
         }
 
-        $db->prepare("
-            UPDATE shipments SET
-                hawb        = ?,
-                customer_id = ?,
-                mawb        = ?,
-                flight_no   = ?,
-                eta         = ?,
-                packages    = ?,
-                weight      = ?,
-                status      = ?,
-                cd_status   = ?,
-                remark      = ?,
-                updated_at  = NOW()
-            WHERE id = ?
-        ")->execute([
-            trim($_POST['hawb']      ?? ''),
-            ($_POST['customer_id']   ?? '') ?: null,
-            trim($_POST['mawb']      ?? ''),
-            trim($_POST['flight_no'] ?? ''),
-            $_POST['eta']            ?: null,
-            (int)($_POST['packages'] ?? 0),
-            (float)($_POST['weight'] ?? 0),
-            $_POST['status']         ?? 'pending_customs',
-            trim($_POST['cd_status'] ?? ''),
-            trim($_POST['remark']    ?? ''),
-            $id,
-        ]);
+        // Kiểm tra cột cd_status có tồn tại không
+        try {
+            $db->prepare("
+                UPDATE shipments SET
+                    hawb        = ?,
+                    customer_id = ?,
+                    mawb        = ?,
+                    flight_no   = ?,
+                    eta         = ?,
+                    packages    = ?,
+                    weight      = ?,
+                    status      = ?,
+                    cd_status   = ?,
+                    remark      = ?,
+                    updated_at  = NOW()
+                WHERE id = ?
+            ")->execute([
+                trim($_POST['hawb']      ?? ''),
+                ($_POST['customer_id']   ?? '') ?: null,
+                trim($_POST['mawb']      ?? ''),
+                trim($_POST['flight_no'] ?? ''),
+                $_POST['eta']            ?: null,
+                (int)($_POST['packages'] ?? 0),
+                (float)($_POST['weight'] ?? 0),
+                $_POST['status']         ?? 'pending_customs',
+                trim($_POST['cd_status'] ?? ''),
+                trim($_POST['remark']    ?? ''),
+                $id,
+            ]);
+        } catch (PDOException $e) {
+            // Nếu cột cd_status chưa có thì update không có cột đó
+            if (str_contains($e->getMessage(), 'cd_status')) {
+                $db->prepare("
+                    UPDATE shipments SET
+                        hawb        = ?,
+                        customer_id = ?,
+                        mawb        = ?,
+                        flight_no   = ?,
+                        eta         = ?,
+                        packages    = ?,
+                        weight      = ?,
+                        status      = ?,
+                        remark      = ?,
+                        updated_at  = NOW()
+                    WHERE id = ?
+                ")->execute([
+                    trim($_POST['hawb']      ?? ''),
+                    ($_POST['customer_id']   ?? '') ?: null,
+                    trim($_POST['mawb']      ?? ''),
+                    trim($_POST['flight_no'] ?? ''),
+                    $_POST['eta']            ?: null,
+                    (int)($_POST['packages'] ?? 0),
+                    (float)($_POST['weight'] ?? 0),
+                    $_POST['status']         ?? 'pending_customs',
+                    trim($_POST['remark']    ?? ''),
+                    $id,
+                ]);
+            } else {
+                throw $e;
+            }
+        }
 
         header('Location: ' . BASE_URL . '/?page=cs.list&msg=saved');
         exit;
     }
 
-// ===== DELETE =====
-public function deleteShipment() {
-    $db = getDB();
-    $id = (int)($_POST['id'] ?? 0);
+    // ===== DELETE SHIPMENT =====
+    public function deleteShipment() {
+        $db = getDB();
+        $id = (int)($_POST['id'] ?? 0);
 
-    if (!$id) {
-        header('Location: ' . BASE_URL . '/?page=cs.list&err=invalid');
+        if (!$id) {
+            header('Location: ' . BASE_URL . '/?page=cs.list&err=invalid');
+            exit;
+        }
+
+        try { $db->prepare("DELETE FROM shipment_logs      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+        try { $db->prepare("DELETE FROM shipment_costs     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+        try { $db->prepare("DELETE FROM shipment_documents WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+        try { $db->prepare("DELETE FROM shipment_customs   WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+        try { $db->prepare("DELETE FROM notifications      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+        try { $db->prepare("DELETE FROM trip_shipments     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
+
+        $db->prepare("DELETE FROM shipments WHERE id = ?")->execute([$id]);
+
+        header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
         exit;
     }
-
-    // Xóa tất cả bảng liên quan trước (try/catch phòng bảng chưa tồn tại)
-    try { $db->prepare("DELETE FROM shipment_logs      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-    try { $db->prepare("DELETE FROM shipment_costs     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-    try { $db->prepare("DELETE FROM shipment_documents WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-    try { $db->prepare("DELETE FROM shipment_customs   WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-    try { $db->prepare("DELETE FROM notifications      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-    try { $db->prepare("DELETE FROM trip_shipments     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-
-    // Cuối cùng mới xóa shipment chính
-    $db->prepare("DELETE FROM shipments WHERE id = ?")->execute([$id]);
-
-    header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
-    exit;
-}
 
 } // ← Đóng class ShipmentController
