@@ -20,6 +20,13 @@ $status     = htmlspecialchars($_GET['status'] ?? '', ENT_QUOTES, 'UTF-8');
 
 $customers  = $customers  ?? [];
 $shipments  = $shipments  ?? [];
+
+$filterQuery = http_build_query(array_filter([
+    'date_from'   => $_GET['date_from']   ?? '',
+    'date_to'     => $_GET['date_to']     ?? '',
+    'customer_id' => $_GET['customer_id'] ?? '',
+    'status'      => $_GET['status']      ?? '',
+]));
 ?>
 
 <div class="container-fluid py-3">
@@ -63,7 +70,7 @@ $shipments  = $shipments  ?? [];
         <div class="col-12 d-flex gap-2">
           <button type="submit" class="btn btn-primary">🔍 Xem trước</button>
           <?php if (!empty($shipments)): ?>
-          <form method="post" action="<?= BASE_URL ?>/?page=report.export&<?= http_build_query(array_filter(['date_from' => $_GET['date_from'] ?? '', 'date_to' => $_GET['date_to'] ?? '', 'customer_id' => $_GET['customer_id'] ?? '', 'status' => $_GET['status'] ?? ''])) ?>" style="display:inline">
+          <form method="post" action="<?= BASE_URL ?>/?page=report.export&<?= $filterQuery ?>" style="display:inline">
             <input type="hidden" name="action" value="download">
             <button type="submit" class="btn btn-success">⬇️ Tải Excel</button>
           </form>
@@ -77,7 +84,7 @@ $shipments  = $shipments  ?? [];
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>Kết quả: <strong><?= count($shipments) ?></strong> lô hàng</span>
-      <form method="post" action="<?= BASE_URL ?>/?page=report.export&<?= http_build_query(array_filter(['date_from' => $_GET['date_from'] ?? '', 'date_to' => $_GET['date_to'] ?? '', 'customer_id' => $_GET['customer_id'] ?? '', 'status' => $_GET['status'] ?? ''])) ?>">
+      <form method="post" action="<?= BASE_URL ?>/?page=report.export&<?= $filterQuery ?>">
         <input type="hidden" name="action" value="download">
         <button type="submit" class="btn btn-sm btn-success">⬇️ Tải Excel</button>
       </form>
