@@ -1,0 +1,289 @@
+<?php
+require_once __DIR__ . '/config/app.php';
+
+// Nếu chưa đăng nhập, chuyển về trang login
+$page = $_GET['page'] ?? '';
+$action = $_GET['action'] ?? '';
+
+if (!isset($_SESSION['user_id']) && $page !== 'login') {
+    header('Location: ' . BASE_URL . '/?page=login');
+    exit;
+}
+
+$role = $_SESSION['role'] ?? '';
+
+// Router chính theo page và role
+switch ($page) {
+    case 'login':
+        $controller = new AuthController();
+        $controller->login();
+        break;
+
+    case 'logout':
+        $controller = new AuthController();
+        $controller->logout();
+        break;
+
+  // ===== CS =====
+case 'cs.dashboard':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->csDashboard();
+    break;
+
+case 'cs.upload':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->uploadExcel();
+    break;
+
+case 'cs.list':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->listShipments();
+    break;
+
+case 'cs.customs_upload':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->customsUpload();
+    break;
+
+case 'cs.edit_shipment':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->editShipment();
+    break;
+
+case 'cs.update_shipment':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->updateShipment();
+    break;
+
+case 'cs.delete_shipment':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->deleteShipment();
+    break;
+
+    // ===== OPS =====
+    case 'ops.dashboard':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->dashboard();
+        break;
+
+    case 'ops.pickup':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->pickup();
+        break;
+
+    case 'ops.trip':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->trip();
+        break;
+
+    case 'ops.costs':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->costs();
+        break;
+
+    case 'ops.complete':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->complete();
+        break;
+
+    case 'ops.download_customs':
+        requireRole('ops', 'admin');
+        $controller = new OpsController();
+        $controller->downloadCustoms();
+        break;
+
+    // ===== Driver =====
+    case 'driver.dashboard':
+        requireRole('driver', 'admin');
+        $controller = new DriverController();
+        $controller->dashboard();
+        break;
+
+    case 'driver.trip_detail':
+        requireRole('driver', 'admin');
+        $controller = new DriverController();
+        $controller->tripDetail();
+        break;
+
+    case 'driver.signature':
+        requireRole('driver', 'admin');
+        $controller = new DriverController();
+        $controller->signature();
+        break;
+
+    case 'driver.delivery_confirm':
+        requireRole('driver', 'admin');
+        $controller = new DriverController();
+        $controller->deliveryConfirm();
+        break;
+
+    // ===== Accounting =====
+    case 'accounting.dashboard':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->dashboard();
+        break;
+
+    case 'accounting.review':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->review();
+        break;
+
+    case 'accounting.push_customer':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->pushToCustomer();
+        break;
+
+    case 'accounting.rejected':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->rejected();
+        break;
+
+    case 'accounting.debt':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->debt();
+        break;
+
+    case 'accounting.invoice':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->invoice();
+        break;
+
+    // ===== Customer =====
+    case 'customer.dashboard':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->dashboard();
+        break;
+
+    case 'customer.shipment_list':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->shipmentList();
+        break;
+
+    case 'customer.shipment_detail':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->shipmentDetail();
+        break;
+
+    case 'customer.pending_approval':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->pendingApproval();
+        break;
+
+    case 'customer.approve':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->approve();
+        break;
+
+    case 'customer.reject':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->reject();
+        break;
+
+    case 'customer.history':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->history();
+        break;
+
+    case 'customer.debt':
+        requireRole('customer', 'admin');
+        $controller = new CustomerController();
+        $controller->debt();
+        break;
+
+    // ===== Admin =====
+case 'admin.dashboard':
+    requireRole('admin');
+    (new AdminController())->dashboard();
+    break;
+
+case 'admin.users':
+    requireRole('admin');
+    (new AdminController())->users();
+    break;
+
+case 'admin.save_user':
+    requireRole('admin');
+    (new AdminController())->saveUser();
+    break;
+
+case 'admin.customers':
+    requireRole('admin');
+    (new AdminController())->customers();
+    break;
+
+case 'admin.save_customer':
+    requireRole('admin');
+    (new AdminController())->saveCustomer();
+    break;
+
+case 'admin.quotation':
+    requireRole('admin');
+    (new AdminController())->quotation();
+    break;
+
+case 'admin.quotation_detail':
+    requireRole('admin');
+    (new AdminController())->quotationDetail();
+    break;
+
+case 'admin.save_quotation':
+    requireRole('admin');
+    (new AdminController())->saveQuotation();
+    break;
+
+case 'admin.settings':
+    requireRole('admin');
+    $viewTitle = 'Cài đặt';
+    $viewFile  = __DIR__ . '/views/admin/settings.php';
+    include __DIR__ . '/views/layouts/main.php';
+    break;
+
+    // ===== Reports =====
+    case 'report.export':
+        requireRole('admin', 'accounting', 'cs');
+        $controller = new ReportController();
+        $controller->export();
+        break;
+
+    // ===== Notifications =====
+    case 'notifications.read':
+        $controller = new NotificationController();
+        $controller->markRead();
+        break;
+
+    default:
+        // Redirect về dashboard theo role
+        if (isset($_SESSION['role'])) {
+            $redirectMap = [
+                'admin'      => 'admin.dashboard',
+                'cs'         => 'cs.dashboard',
+                'ops'        => 'ops.dashboard',
+                'driver'     => 'driver.dashboard',
+                'accounting' => 'accounting.dashboard',
+                'customer'   => 'customer.dashboard',
+            ];
+            $dest = $redirectMap[$_SESSION['role']] ?? 'login';
+            header('Location: ' . BASE_URL . '/?page=' . $dest);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/?page=login');
+        exit;
+}
