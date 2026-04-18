@@ -70,12 +70,21 @@ $statusBadge = function($status) {
 </div>
 
 <!-- Table -->
+<?php
+$role = $_SESSION['role'] ?? '';
+$hasUngrouped = false;
+$sumUngrouped = 0;
+foreach ($shipments as $s) {
+    $ug = (float)($costsByShipment[$s['id']]['ungrouped'] ?? 0);
+    if ($ug > 0) { $hasUngrouped = true; $sumUngrouped += $ug; }
+}
+?>
 <div class="card" style="border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
-  <div class="card-header bg-white py-3 px-4" style="border-radius:12px 12px 0 0">
+  <div class="card-header bg-white py-3 px-4 d-flex align-items-center gap-2" style="border-radius:12px 12px 0 0">
     <h6 class="mb-0 fw-bold">
-      📦 <?= in_array($role ?? '', ['cs', 'admin']) ? 'Tất cả lô hàng' : 'Lô hàng của tôi' ?>
-      <span class="badge bg-primary ms-1"><?= number_format($totalRows) ?></span>
+      📦 <?= in_array($role, ['cs', 'admin']) ? 'Tất cả lô hàng' : 'Lô hàng của tôi' ?>
     </h6>
+    <span class="badge bg-primary ms-1"><?= number_format($totalRows) ?></span>
   </div>
   <div class="card-body p-0">
     <?php if (empty($shipments)): ?>
@@ -85,49 +94,88 @@ $statusBadge = function($status) {
     </div>
     <?php else: ?>
     <div class="table-responsive">
-      <table class="table table-hover mb-0 align-middle" style="font-size:0.85rem">
-        <thead style="background:#f8fafc;color:#64748b;font-size:0.78rem">
+      <table class="table table-bordered table-sm align-middle mb-0" style="font-size:0.82rem">
+        <thead style="background:#1e3a5f;color:#fff;font-size:0.78rem">
           <tr>
-            <th class="ps-4">HAWB</th>
-            <?php if (in_array($role ?? '', ['cs', 'admin'])): ?>
-            <th>Khách hàng</th>
+            <th class="text-center" style="width:40px">NO</th>
+            <th style="width:85px">DATE</th>
+            <?php if (in_array($role, ['cs', 'admin'])): ?>
+            <th>CONSIGNEE</th>
             <?php endif; ?>
-            <th>MAWB / Flight</th>
-            <th>ETA</th>
-            <th>Kiện / KG</th>
-            <th>Active date</th>
-            <th>Trạng thái</th>
-            <th class="text-end pe-4">Chi phí</th>
+            <th>HAWB</th>
+            <th>CD NO.</th>
+            <th class="text-center" style="width:50px">PKG</th>
+            <th class="text-end" style="width:70px">GW (KG)</th>
+            <?php foreach ($costGroups as $cg): ?>
+            <th class="text-end" style="min-width:100px"><?= htmlspecialchars(strtoupper($cg['name'])) ?></th>
+            <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <th class="text-end" style="min-width:90px">OTHER FEE</th>
+            <?php endif; ?>
+            <th class="text-end" style="min-width:90px;background:#163058">TOTAL</th>
+            <th style="min-width:100px">NOTE</th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($shipments as $s): ?>
+          <?php
+          $no = 1;
+          $sumByGroup = [];
+          $sumTotal   = 0;
+          foreach ($shipments as $s):
+            $sid   = $s['id'];
+            $total = 0;
+            foreach ($costGroups as $cg) $total += (float)($costsByShipment[$sid][$cg['id']] ?? 0);
+            $ug = (float)($costsByShipment[$sid]['ungrouped'] ?? 0);
+            $total += $ug;
+            foreach ($costGroups as $cg) {
+                if (!isset($sumByGroup[$cg['id']])) $sumByGroup[$cg['id']] = 0;
+                $sumByGroup[$cg['id']] += (float)($costsByShipment[$sid][$cg['id']] ?? 0);
+            }
+            $sumTotal += $total;
+          ?>
           <tr style="cursor:pointer"
               onclick="location.href='<?= BASE_URL ?>/?page=customer.shipment_detail&id=<?= $s['id'] ?>'">
-            <td class="ps-4 fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
-            <?php if (in_array($role ?? '', ['cs', 'admin'])): ?>
-            <td>
-              <div class="small"><?= htmlspecialchars($s['company_name'] ?? $s['cust_code'] ?? '-') ?></div>
+            <td class="text-center"><?= $no++ ?></td>
+            <td><?= $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '-' ?></td>
+            <?php if (in_array($role, ['cs', 'admin'])): ?>
+            <td class="fw-semibold"><?= htmlspecialchars($s['company_name'] ?? $s['cust_code'] ?? '-') ?></td>
+            <?php endif; ?>
+            <td class="fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
+            <td class="text-muted small"><?= htmlspecialchars($s['cd_numbers'] ?? '-') ?></td>
+            <td class="text-center"><?= (int)$s['packages'] ?></td>
+            <td class="text-end"><?= number_format((float)$s['weight'], 1) ?></td>
+            <?php foreach ($costGroups as $cg): ?>
+            <td class="text-end">
+              <?php $amt = (float)($costsByShipment[$sid][$cg['id']] ?? 0); ?>
+              <?= $amt > 0 ? number_format($amt) : '<span class="text-muted">-</span>' ?>
+            </td>
+            <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <td class="text-end">
+              <?= $ug > 0 ? number_format($ug) : '<span class="text-muted">-</span>' ?>
             </td>
             <?php endif; ?>
-            <td>
-              <div class="small"><?= htmlspecialchars($s['mawb'] ?? '-') ?></div>
-              <small class="text-muted"><?= htmlspecialchars($s['flight_no'] ?? '') ?></small>
+            <td class="text-end fw-semibold text-success">
+              <?= $total > 0 ? number_format($total) : '<span class="text-muted">-</span>' ?>
             </td>
-            <td class="small"><?= $s['eta'] ? date('d/m/Y', strtotime($s['eta'])) : '-' ?></td>
-            <td><?= $s['packages'] ?> / <?= number_format($s['weight'],1) ?> kg</td>
-            <td><?= date('d/m/Y', strtotime($s['active_date'])) ?></td>
-            <td><?= $statusBadge($s['status']) ?></td>
-            <td class="text-end pe-4">
-              <?php if ($s['total_cost'] > 0): ?>
-              <span class="fw-semibold text-success"><?= number_format($s['total_cost']) ?> đ</span>
-              <?php else: ?>
-              <span class="text-muted small">-</span>
-              <?php endif; ?>
-            </td>
+            <td class="text-muted small"><?= htmlspecialchars($s['remark'] ?? '') ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
+        <tfoot style="background:#f0f7ff;font-weight:700;font-size:0.82rem">
+          <tr>
+            <?php $colFixed = in_array($role, ['cs', 'admin']) ? 7 : 6; ?>
+            <td colspan="<?= $colFixed ?>" class="text-end pe-3">TỔNG CỘNG:</td>
+            <?php foreach ($costGroups as $cg): ?>
+            <td class="text-end text-primary"><?= number_format($sumByGroup[$cg['id']] ?? 0) ?></td>
+            <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <td class="text-end text-primary"><?= number_format($sumUngrouped) ?></td>
+            <?php endif; ?>
+            <td class="text-end text-success"><?= number_format($sumTotal) ?></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
 
