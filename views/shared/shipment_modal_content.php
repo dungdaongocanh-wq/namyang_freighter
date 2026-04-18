@@ -190,7 +190,7 @@ $role = $_SESSION['role'] ?? '';
     <?php if ($signature): ?>
     <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0">
       <div class="fw-semibold small text-muted mb-2">✍️ Chữ ký điện tử</div>
-      <img src="<?= BASE_URL ?>/<?= htmlspecialchars($signature['signature_path'] ?? $signature['file_path'] ?? '') ?>"
+      <img src="<?= BASE_URL ?>/<?= htmlspecialchars(!empty($signature['signature_path']) ? $signature['signature_path'] : ($signature['file_path'] ?? '')) ?>"
            alt="Chữ ký" style="max-width:100%;border:1px solid #e2e8f0;border-radius:6px">
       <?php if (!empty($signature['signer_name'])): ?>
       <div class="small text-muted mt-1">Người ký: <?= htmlspecialchars($signature['signer_name']) ?></div>

@@ -154,9 +154,10 @@ $adminStatusMap = [
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($recentShipments as $s):
+          <?php
+          $adminBadgeStyleMap = ['orange' => 'background:#ffedd5;color:#c2410c', 'purple' => 'background:#f3e8ff;color:#7e22ce'];
+          foreach ($recentShipments as $s):
             [$lbl, $clr] = $adminStatusMap[$s['status']] ?? [$s['status'], 'secondary'];
-            $styleMap = ['orange' => 'background:#ffedd5;color:#c2410c', 'purple' => 'background:#f3e8ff;color:#7e22ce'];
           ?>
           <tr data-id="<?= $s['id'] ?>" style="cursor:pointer">
             <td class="ps-4 fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
@@ -168,8 +169,8 @@ $adminStatusMap = [
             <td><?= (int)$s['packages'] ?> / <?= number_format((float)$s['weight'], 1) ?> kg</td>
             <td><?= $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '-' ?></td>
             <td>
-              <?php if (isset($styleMap[$clr])): ?>
-              <span class="badge" style="<?= $styleMap[$clr] ?>"><?= $lbl ?></span>
+              <?php if (isset($adminBadgeStyleMap[$clr])): ?>
+              <span class="badge" style="<?= $adminBadgeStyleMap[$clr] ?>"><?= $lbl ?></span>
               <?php else: ?>
               <span class="badge bg-<?= $clr ?>"><?= $lbl ?></span>
               <?php endif; ?>

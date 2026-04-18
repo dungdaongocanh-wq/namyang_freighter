@@ -308,11 +308,12 @@ public function deleteCustomsRecord() {
 
     // ===== SHIPMENT MODAL (AJAX partial) =====
     public function modal() {
-        header('Content-Type: text/html; charset=utf-8');
         if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: text/html; charset=utf-8');
             echo '<p class="text-muted p-3">Vui lòng đăng nhập.</p>';
             exit;
         }
+        header('Content-Type: text/html; charset=utf-8');
         $db = getDB();
         $id = (int)($_GET['id'] ?? 0);
         if (!$id) {
@@ -335,8 +336,8 @@ public function deleteCustomsRecord() {
 
         // Nếu role customer, chỉ xem lô của mình
         if (($_SESSION['role'] ?? '') === 'customer') {
-            $customerId = $_SESSION['customer_id'] ?? 0;
-            if ($s['customer_id'] != $customerId) {
+            $customerId = (int)($_SESSION['customer_id'] ?? 0);
+            if ((int)$s['customer_id'] !== $customerId) {
                 echo '<p class="text-muted p-3">Bạn không có quyền xem lô hàng này.</p>';
                 exit;
             }
