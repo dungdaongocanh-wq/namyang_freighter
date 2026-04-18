@@ -100,6 +100,20 @@ CREATE TABLE delivery_trip_items (
   FOREIGN KEY (shipment_id) REFERENCES shipments(id)
 );
 
+CREATE TABLE IF NOT EXISTS delivery_notes (
+  id               INT PRIMARY KEY AUTO_INCREMENT,
+  shipment_id      INT NOT NULL,
+  note_code        VARCHAR(50),
+  recipient_name   VARCHAR(100) NULL,
+  recipient_phone  VARCHAR(30) NULL,
+  delivery_address TEXT NULL,
+  printed_at       TIMESTAMP NULL,
+  printed_by       INT NULL,
+  created_by       INT NULL,
+  created_at       TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+);
+
 CREATE TABLE delivery_signatures (
   id INT PRIMARY KEY AUTO_INCREMENT,
   shipment_id INT NOT NULL,
@@ -109,22 +123,6 @@ CREATE TABLE delivery_signatures (
   signed_by_driver INT,
   signed_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (shipment_id) REFERENCES shipments(id)
-);
-
-CREATE TABLE shipment_costs (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  shipment_id INT NOT NULL,
-  cost_name VARCHAR(100),
-  quantity DECIMAL(10,2),
-  unit VARCHAR(20),
-  unit_price DECIMAL(15,2),
-  amount DECIMAL(15,2),
-  source ENUM('auto','manual','ops','kt','quotation') DEFAULT 'auto',
-  quotation_item_id INT NULL,
-  created_by INT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (shipment_id) REFERENCES shipments(id),
-  FOREIGN KEY (quotation_item_id) REFERENCES quotation_items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE quotations (
@@ -151,6 +149,22 @@ CREATE TABLE quotation_items (
   note TEXT NULL,
   sort_order INT DEFAULT 0,
   FOREIGN KEY (quotation_id) REFERENCES quotations(id)
+);
+
+CREATE TABLE shipment_costs (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  shipment_id INT NOT NULL,
+  cost_name VARCHAR(100),
+  quantity DECIMAL(10,2),
+  unit VARCHAR(20),
+  unit_price DECIMAL(15,2),
+  amount DECIMAL(15,2),
+  source ENUM('auto','manual','ops','kt','quotation') DEFAULT 'auto',
+  quotation_item_id INT NULL,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (shipment_id) REFERENCES shipments(id),
+  FOREIGN KEY (quotation_item_id) REFERENCES quotation_items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE approval_history (

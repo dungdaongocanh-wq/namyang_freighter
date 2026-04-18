@@ -578,7 +578,7 @@ class OpsController {
                ->execute([$shipmentId, $n, $a, $_SESSION['user_id']]);
         }
 
-        try { $db->prepare("INSERT INTO shipment_logs (shipment_id,action,note,user_id) VALUES (?,'cost_updated','OPS cập nhật chi phí từ modal',?)")->execute([$shipmentId,$_SESSION['user_id']]); } catch(Exception $e){}
+        try { $db->prepare("INSERT INTO shipment_logs (shipment_id,triggered_by,note,user_id) VALUES (?,'cost_updated','OPS cập nhật chi phí từ modal',?)")->execute([$shipmentId,$_SESSION['user_id']]); } catch(Exception $e){}
         echo json_encode(['success' => true]);
         exit;
     }
