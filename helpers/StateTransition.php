@@ -51,6 +51,9 @@ class StateTransition
 
         // Chốt tháng → đã lập hóa đơn
         'month_close'         => ['from' => ['debt'],                       'to' => 'invoiced'],
+
+        // Xác nhận thủ công đã giao (từ bảng theo dõi)
+        'manual_delivered'    => ['from' => ['in_transit'],                 'to' => 'delivered'],
     ];
 
     /**
