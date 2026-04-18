@@ -81,13 +81,14 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
              style="font-size:0.82rem;min-width:900px">
         <thead style="background:#1e3a5f;color:#fff">
           <tr>
-            <th class="ps-3" style="width:35%">Diễn giải / Description</th>
+            <th class="ps-3" style="width:30%">Diễn giải / Description</th>
+            <th style="width:13%">Nhóm chi phí</th>
             <th style="width:7%" class="text-center">Tiền tệ</th>
             <th style="width:12%" class="text-end">Đơn giá</th>
             <th style="width:6%" class="text-center">SL</th>
             <th style="width:12%" class="text-end">Thành tiền</th>
             <th style="width:6%" class="text-center">VAT%</th>
-            <th style="width:17%">Ghi chú</th>
+            <th style="width:9%">Ghi chú</th>
             <th style="width:5%" class="text-center no-print">Xóa</th>
           </tr>
         </thead>
@@ -98,7 +99,18 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
               <input type="text" name="desc[]"
                      class="form-control form-control-sm border-0"
                      value="<?= htmlspecialchars($item['description']) ?>"
-                     placeholder="Diễn giải..." style="min-width:200px">
+                     placeholder="Diễn giải..." style="min-width:160px">
+            </td>
+            <td>
+              <select name="cost_group_id[]" class="form-select form-select-sm border-0">
+                <option value="">-- Chưa phân nhóm --</option>
+                <?php foreach ($costGroups as $cg): ?>
+                <option value="<?= $cg['id'] ?>"
+                  <?= (isset($item['cost_group_id']) && $item['cost_group_id'] == $cg['id']) ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($cg['name']) ?>
+                </option>
+                <?php endforeach; ?>
+              </select>
             </td>
             <td>
               <select name="currency[]" class="form-select form-select-sm border-0 text-center">
@@ -146,7 +158,7 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
         <tfoot>
           <!-- Tổng chưa VAT -->
           <tr style="background:#f8fafc;font-weight:600">
-            <td colspan="4" class="text-end pe-3 ps-3">Tổng cộng (chưa VAT):</td>
+            <td colspan="5" class="text-end pe-3 ps-3">Tổng cộng (chưa VAT):</td>
             <td class="text-end pe-2 text-success" id="subtotalDisplay">
               <?= number_format($totalAmount) ?>
             </td>
@@ -154,7 +166,7 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
           </tr>
           <!-- VAT -->
           <tr style="background:#f8fafc">
-            <td colspan="4" class="text-end pe-3 ps-3 small text-muted">VAT (ước tính 8%):</td>
+            <td colspan="5" class="text-end pe-3 ps-3 small text-muted">VAT (ước tính 8%):</td>
             <td class="text-end pe-2 small text-muted" id="vatDisplay">
               <?= number_format($totalVat) ?>
             </td>
@@ -162,7 +174,7 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
           </tr>
           <!-- Tổng + VAT -->
           <tr style="background:#e8f4fd;font-weight:700;font-size:0.95rem">
-            <td colspan="4" class="text-end pe-3 ps-3" style="color:#1e3a5f">
+            <td colspan="5" class="text-end pe-3 ps-3" style="color:#1e3a5f">
               TỔNG THANH TOÁN (đã VAT):
             </td>
             <td class="text-end pe-2" style="color:#15803d;font-size:1.05rem" id="grandTotalDisplay">
@@ -189,6 +201,16 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
 </div>
 
 <script>
+// Danh sách nhóm chi phí cho dropdown dòng mới
+const costGroupsData = <?= json_encode(array_values($costGroups)) ?>;
+let costGroupOptions = '<option value="">-- Chưa phân nhóm --</option>';
+costGroupsData.forEach(function(cg) {
+  const name = String(cg.name)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  costGroupOptions += `<option value="${cg.id}">${name}</option>`;
+});
+
 // Tính thành tiền 1 dòng
 function calcRow(el) {
   const row    = el.closest('.item-row');
@@ -223,7 +245,12 @@ function addRow() {
     <td class="ps-2">
       <input type="text" name="desc[]"
              class="form-control form-control-sm border-0"
-             placeholder="Diễn giải dịch vụ..." style="min-width:200px">
+             placeholder="Diễn giải dịch vụ..." style="min-width:160px">
+    </td>
+    <td>
+      <select name="cost_group_id[]" class="form-select form-select-sm border-0">
+        ${costGroupOptions}
+      </select>
     </td>
     <td>
       <select name="currency[]" class="form-select form-select-sm border-0 text-center">

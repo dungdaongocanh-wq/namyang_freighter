@@ -15,6 +15,7 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('cs.upload', 'cloud-upload', 'Upload lô hàng', $currentPage); ?>
 <?php sidebarLink('cs.list', 'table', 'Danh sách lô', $currentPage); ?>
 <?php sidebarLink('cs.customs_upload', 'file-earmark-text', 'Upload tờ khai', $currentPage); ?>
+<?php sidebarLink('statement.index', 'bar-chart-line', 'Bảng kê chi tiết', $currentPage); ?>
 <?php endif; ?>
 
 <?php if ($role === 'ops' || $role === 'admin'): ?>
@@ -46,6 +47,7 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('customer.pending_approval', 'bell', 'Duyệt chi phí', $currentPage); ?>
 <?php sidebarLink('customer.history', 'clock-history', 'Lịch sử', $currentPage); ?>
 <?php sidebarLink('customer.debt', 'wallet2', 'Công nợ', $currentPage); ?>
+<?php sidebarLink('statement.index', 'bar-chart-line', 'Bảng kê chi phí', $currentPage); ?>
 <?php endif; ?>
 
 <?php if ($role === 'admin'): ?>
@@ -54,5 +56,6 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('admin.users', 'people', 'Quản lý Users', $currentPage); ?>
 <?php sidebarLink('admin.customers', 'building', 'Khách hàng', $currentPage); ?>
 <?php sidebarLink('admin.quotation', 'tags', 'Báo giá', $currentPage); ?>
+<?php sidebarLink('admin.cost_groups', 'bookmark', 'Nhóm chi phí', $currentPage); ?>
 <?php sidebarLink('admin.settings', 'gear', 'Cài đặt', $currentPage); ?>
 <?php endif; ?>

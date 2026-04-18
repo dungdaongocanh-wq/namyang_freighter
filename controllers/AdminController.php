@@ -191,6 +191,10 @@ public function quotationDetail() {
         SELECT id, customer_code, company_name FROM customers WHERE is_active=1 ORDER BY customer_code
     ")->fetchAll();
 
+    $costGroups = $db->query("
+        SELECT id, name FROM cost_groups WHERE is_active=1 ORDER BY sort_order, id
+    ")->fetchAll();
+
     $viewTitle = 'Báo giá - ' . $quotation['customer_code'];
     $viewFile  = __DIR__ . '/../views/admin/quotation_detail.php';
     include __DIR__ . '/../views/layouts/main.php';
@@ -235,15 +239,18 @@ public function saveQuotation() {
 
     $stmt = $db->prepare("
         INSERT INTO quotation_items
-        (quotation_id, description, currency, unit_price, quantity, amount, vat_pct, note, sort_order)
-        VALUES (?,?,?,?,?,?,?,?,?)
+        (quotation_id, description, currency, unit_price, quantity, amount, vat_pct, note, sort_order, cost_group_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
     ");
+
+    $costGroupIds = $_POST['cost_group_id'] ?? [];
 
     foreach ($descriptions as $i => $desc) {
         if (empty(trim($desc))) continue;
         $unitPrice = (float)str_replace(',', '', $unitPrices[$i] ?? 0);
         $qty       = (float)($quantities[$i] ?? 1);
         $amount    = $unitPrice * $qty;
+        $cgId      = ($costGroupIds[$i] ?? '') !== '' ? (int)$costGroupIds[$i] : null;
         $stmt->execute([
             $id,
             trim($desc),
@@ -254,6 +261,7 @@ public function saveQuotation() {
             (int)($vatPcts[$i] ?? 8),
             trim($notes[$i]  ?? ''),
             $i,
+            $cgId,
         ]);
     }
 
@@ -261,4 +269,64 @@ public function saveQuotation() {
     exit;
 
 }
+
+    // ===== NHÓM CHI PHÍ =====
+    public function costGroups() {
+        $db = getDB();
+        $costGroups = $db->query("
+            SELECT * FROM cost_groups ORDER BY sort_order, id
+        ")->fetchAll();
+
+        $viewTitle = 'Nhóm chi phí';
+        $viewFile  = __DIR__ . '/../views/admin/cost_groups.php';
+        include __DIR__ . '/../views/layouts/main.php';
+    }
+
+    public function saveCostGroup() {
+        $db = getDB();
+        $id        = (int)($_POST['id'] ?? 0);
+        $name      = trim($_POST['name'] ?? '');
+        $sortOrder = (int)($_POST['sort_order'] ?? 0);
+        $isActive  = (int)($_POST['is_active'] ?? 1);
+
+        if (empty($name)) {
+            header('Location: ' . BASE_URL . '/?page=admin.cost_groups&err=empty_name');
+            exit;
+        }
+
+        if ($id) {
+            $db->prepare("
+                UPDATE cost_groups SET name=?, sort_order=?, is_active=? WHERE id=?
+            ")->execute([$name, $sortOrder, $isActive, $id]);
+        } else {
+            $db->prepare("
+                INSERT INTO cost_groups (name, sort_order, is_active) VALUES (?,?,?)
+            ")->execute([$name, $sortOrder, $isActive]);
+        }
+
+        header('Location: ' . BASE_URL . '/?page=admin.cost_groups&msg=saved');
+        exit;
+    }
+
+    public function deleteCostGroup() {
+        $db = getDB();
+        $id = (int)($_POST['id'] ?? 0);
+
+        if (!$id) {
+            header('Location: ' . BASE_URL . '/?page=admin.cost_groups&err=invalid');
+            exit;
+        }
+
+        // Kiểm tra không có quotation_items nào đang dùng
+        $stmt = $db->prepare("SELECT COUNT(*) FROM quotation_items WHERE cost_group_id=?");
+        $stmt->execute([$id]);
+        if ($stmt->fetchColumn() > 0) {
+            header('Location: ' . BASE_URL . '/?page=admin.cost_groups&err=in_use');
+            exit;
+        }
+
+        $db->prepare("DELETE FROM cost_groups WHERE id=?")->execute([$id]);
+        header('Location: ' . BASE_URL . '/?page=admin.cost_groups&msg=deleted');
+        exit;
+    }
 }
