@@ -43,6 +43,13 @@ class ShipmentController {
         if (!empty($_GET['status'])) {
             $where[]  = "s.status = ?";
             $params[] = $_GET['status'];
+        } else {
+            // Mặc định: chỉ hiện lô đang hoạt động
+            // KT duyệt chỉ hiện trong ngày active_date của lô đó
+            $where[] = "(
+                s.status IN ('pending_customs', 'waiting_pickup', 'in_transit')
+                OR (s.status = 'kt_reviewing' AND s.active_date = CURDATE())
+            )";
         }
         if (!empty($_GET['customer_id'])) {
             $where[]  = "s.customer_id = ?";
@@ -159,7 +166,7 @@ class ShipmentController {
                    SUM(CASE WHEN sc.file_path IS NOT NULL THEN 1 ELSE 0 END)   as uploaded_count
             FROM shipments s
             LEFT JOIN shipment_customs sc ON s.id = sc.shipment_id
-            WHERE s.status NOT IN ('delivered', 'invoiced')
+            WHERE s.status IN ('pending_customs', 'cleared', 'waiting_pickup', 'in_transit')
             GROUP BY s.id
             ORDER BY s.active_date DESC
             LIMIT 200

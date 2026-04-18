@@ -6,6 +6,10 @@ $statusMap = [
     'in_transit'       => ['Đang giao',      'primary'],
     'delivered'        => ['Đã giao',        'secondary'],
     'pending_approval' => ['Chờ duyệt',      'info'],
+    'kt_reviewing'     => ['KT duyệt',       'info'],
+    'rejected'         => ['Từ chối',        'danger'],
+    'debt'             => ['Công nợ',        'dark'],
+    'invoiced'         => ['Đã xuất HĐ',    'success'],
 ];
 ?>
 
