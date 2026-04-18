@@ -271,10 +271,7 @@ function removeRow(btn) {
 
 // Lưu toàn bộ
 function saveAll() {
-  document.getElementById('quotationForm').appendChild(
-    document.getElementById('itemsBody').cloneNode(true)
-  );
-  // Submit cả 2 form data cùng lúc qua form chính
+  // Submit form data qua form chính
   const mainForm  = document.getElementById('quotationForm');
   const itemTable = document.getElementById('itemsTable');
 
