@@ -179,7 +179,47 @@ class CustomerController {
     public function approve() {
         $db         = getDB();
         $customerId = $_SESSION['customer_id'];
-        $id         = (int)($_POST['shipment_id'] ?? 0);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Hiển thị trang duyệt chi tiết cho 1 lô
+            $id = (int)($_GET['id'] ?? 0);
+            if (!$id) {
+                header('Location: ' . BASE_URL . '/?page=customer.pending_approval');
+                exit;
+            }
+
+            $stmt = $db->prepare("
+                SELECT s.*,
+                       c.company_name, c.customer_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
+                GROUP BY s.id
+            ");
+            $stmt->execute([$id, $customerId]);
+            $shipment = $stmt->fetch();
+
+            if (!$shipment) {
+                header('Location: ' . BASE_URL . '/?page=customer.pending_approval&err=not_found');
+                exit;
+            }
+
+            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
+            $costs->execute([$id]);
+            $costs = $costs->fetchAll();
+
+            $totalCost = array_sum(array_column($costs, 'amount'));
+
+            $viewTitle = 'Duyệt chi phí — ' . $shipment['hawb'];
+            $viewFile  = __DIR__ . '/../views/customer/approve.php';
+            include __DIR__ . '/../views/layouts/main.php';
+            return;
+        }
+
+        // POST → xử lý duyệt
+        $id = (int)($_POST['shipment_id'] ?? 0);
 
         // Xác minh lô thuộc KH và đang chờ duyệt
         $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND customer_id=? AND status='pending_approval'");
@@ -205,8 +245,48 @@ class CustomerController {
     public function reject() {
         $db         = getDB();
         $customerId = $_SESSION['customer_id'];
-        $id         = (int)($_POST['shipment_id'] ?? 0);
-        $reason     = trim($_POST['reason'] ?? '');
+
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Hiển thị trang từ chối cho 1 lô
+            $id = (int)($_GET['id'] ?? 0);
+            if (!$id) {
+                header('Location: ' . BASE_URL . '/?page=customer.pending_approval');
+                exit;
+            }
+
+            $stmt = $db->prepare("
+                SELECT s.*,
+                       c.company_name, c.customer_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
+                GROUP BY s.id
+            ");
+            $stmt->execute([$id, $customerId]);
+            $shipment = $stmt->fetch();
+
+            if (!$shipment) {
+                header('Location: ' . BASE_URL . '/?page=customer.pending_approval&err=not_found');
+                exit;
+            }
+
+            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
+            $costs->execute([$id]);
+            $costs = $costs->fetchAll();
+
+            $totalCost = array_sum(array_column($costs, 'amount'));
+
+            $viewTitle = 'Từ chối chi phí — ' . $shipment['hawb'];
+            $viewFile  = __DIR__ . '/../views/customer/reject.php';
+            include __DIR__ . '/../views/layouts/main.php';
+            return;
+        }
+
+        // POST → xử lý từ chối
+        $id     = (int)($_POST['shipment_id'] ?? 0);
+        $reason = trim($_POST['reason'] ?? '');
 
         if (!$reason) {
             header('Location: ' . BASE_URL . '/?page=customer.pending_approval&err=no_reason');

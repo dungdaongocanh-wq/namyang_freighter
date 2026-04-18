@@ -121,19 +121,63 @@ class AccountingController {
 
     // ===== ĐẨY SANG KHÁCH HÀNG =====
     public function pushToCustomer() {
-        $db         = getDB();
+        $db = getDB();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Danh sách lô đã duyệt nội bộ, chưa đẩy KH
+            $stmt = $db->query("
+                SELECT s.*, c.company_name,
+                       COALESCE(SUM(sc.amount),0) as total_cost,
+                       COUNT(sc.id) as cost_count
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.status IN ('kt_reviewing', 'pending_approval', 'rejected')
+                GROUP BY s.id
+                ORDER BY s.updated_at ASC
+            ");
+            $shipments = $stmt->fetchAll();
+
+            $viewTitle = 'Đẩy chi phí sang KH';
+            $viewFile  = __DIR__ . '/../views/accounting/push_customer.php';
+            include __DIR__ . '/../views/layouts/main.php';
+            return;
+        }
+
+        // POST
+        $action = $_POST['action'] ?? 'push_one';
+
+        if ($action === 'push_selected') {
+            // Đẩy nhiều lô đã chọn
+            $ids = $_POST['shipment_ids'] ?? [];
+            if (empty($ids)) {
+                header('Location: ' . BASE_URL . '/?page=accounting.push_customer&err=no_select');
+                exit;
+            }
+            foreach (array_map('intval', $ids) as $sid) {
+                $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=?");
+                $costCount->execute([$sid]);
+                if ($costCount->fetchColumn() > 0) {
+                    StateTransition::transition($sid, 'kt_push_customer', $_SESSION['user_id']);
+                }
+            }
+            header('Location: ' . BASE_URL . '/?page=accounting.push_customer&msg=pushed');
+            exit;
+        }
+
+        // Đẩy 1 lô
         $shipmentId = (int)($_POST['shipment_id'] ?? 0);
 
         // Phải có ít nhất 1 chi phí
         $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=?");
         $costCount->execute([$shipmentId]);
         if ($costCount->fetchColumn() == 0) {
-            header('Location: ' . BASE_URL . '/?page=accounting.review&id=' . $shipmentId . '&err=no_cost');
+            header('Location: ' . BASE_URL . '/?page=accounting.push_customer&err=no_cost');
             exit;
         }
 
         StateTransition::transition($shipmentId, 'kt_push_customer', $_SESSION['user_id']);
-        header('Location: ' . BASE_URL . '/?page=accounting.review&msg=pushed');
+        header('Location: ' . BASE_URL . '/?page=accounting.push_customer&msg=pushed');
         exit;
     }
 
