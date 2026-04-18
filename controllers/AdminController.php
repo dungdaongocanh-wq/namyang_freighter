@@ -7,7 +7,7 @@ class AdminController {
         $db = getDB();
 
         $stats = [
-            'total_shipments' => (int)$db->query("SELECT COUNT(*) FROM shipments WHERE is_active=1")->fetchColumn(),
+            'total_shipments' => (int)$db->query("SELECT COUNT(*) FROM shipments")->fetchColumn(),
             'total_users'     => (int)$db->query("SELECT COUNT(*) FROM users WHERE is_active=1")->fetchColumn(),
             'total_customers' => (int)$db->query("SELECT COUNT(*) FROM customers WHERE is_active=1")->fetchColumn(),
             'total_debt'      => (float)$db->query("
@@ -20,7 +20,7 @@ class AdminController {
 
         $statusBreakdown = $db->query("
             SELECT status, COUNT(*) as cnt
-            FROM shipments WHERE is_active=1
+            FROM shipments
             GROUP BY status
         ")->fetchAll();
 
@@ -54,7 +54,7 @@ class AdminController {
 
         $customers = $db->query("
             SELECT id, customer_code, company_name
-            FROM customers WHERE is_active=1 ORDER BY customer_code
+            FROM customers  ORDER BY customer_code
         ")->fetchAll();
 
         $viewTitle = 'Quản lý người dùng';
@@ -111,7 +111,7 @@ class AdminController {
                        CASE WHEN s.status NOT IN ('invoiced','cancelled') THEN sc.amount ELSE 0 END
                    ), 0) as total_debt
             FROM customers c
-            LEFT JOIN shipments s ON s.customer_id = c.id AND s.is_active = 1
+            LEFT JOIN shipments s ON s.customer_id = c.id
             LEFT JOIN shipment_costs sc ON sc.shipment_id = s.id AND (sc.source IS NULL OR sc.source != 'ops')
             GROUP BY c.id
             ORDER BY c.customer_code
