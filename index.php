@@ -109,6 +109,11 @@ case 'cs.cancel':
         (new OpsController())->complete();
         break;
 
+    case 'ops.print_delivery_note':
+        requireRole(['ops', 'admin']);
+        (new OpsController())->printDeliveryNote();
+        break;
+
     case 'ops.download_customs':
         requireRole(['ops', 'admin']);
         (new OpsController())->downloadCustoms();
