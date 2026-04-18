@@ -55,6 +55,7 @@ $statusMap = [
             <th>MAWB</th>
             <th>Flight / ETA</th>
             <th>Kiện / KG</th>
+            <th>Ghi chú</th>
             <th>Active date</th>
             <th>Trạng thái</th>
             <th class="text-center">Thao tác</th>
@@ -63,7 +64,7 @@ $statusMap = [
         <tbody>
           <?php if (empty($shipments)): ?>
           <tr>
-            <td colspan="8" class="text-center text-muted py-5">
+            <td colspan="9" class="text-center text-muted py-5">
               Không có dữ liệu
             </td>
           </tr>
@@ -78,9 +79,6 @@ $statusMap = [
                  class="fw-semibold text-decoration-none">
                 <?= htmlspecialchars($s['hawb']) ?>
               </a>
-              <?php if (!empty($s['remark'])): ?>
-              <span title="<?= htmlspecialchars($s['remark']) ?>" style="cursor:help">📋</span>
-              <?php endif; ?>
             </td>
             <td>
               <span class="badge bg-light text-dark border" style="font-size:0.78rem">
@@ -97,6 +95,15 @@ $statusMap = [
             <td>
               <strong><?= (int)$s['packages'] ?></strong> kiện /
               <?= number_format((float)$s['weight'], 1) ?> kg
+            </td>
+            <td class="text-muted small" style="max-width:180px">
+              <?php if (!empty($s['remark'])): ?>
+                <span title="<?= htmlspecialchars($s['remark']) ?>">
+                  <?= htmlspecialchars(mb_strimwidth($s['remark'], 0, 40, '…')) ?>
+                </span>
+              <?php else: ?>
+                <span class="text-muted">-</span>
+              <?php endif; ?>
             </td>
             <td class="text-muted small">
               <?= $s['created_at'] ? date('d/m/Y', strtotime($s['created_at'])) : '-' ?>
