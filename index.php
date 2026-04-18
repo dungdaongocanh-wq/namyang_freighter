@@ -119,6 +119,16 @@ case 'cs.cancel':
         (new OpsController())->downloadCustoms();
         break;
 
+    case 'ops.shipments_by_customer':
+        requireRole(['ops', 'admin']);
+        (new OpsController())->shipmentsByCustomer();
+        break;
+
+    case 'ops.print_multi_delivery_note':
+        requireRole(['ops', 'admin']);
+        (new OpsController())->printMultiDeliveryNote();
+        break;
+
     // ===== Driver =====
     case 'driver.dashboard':
         requireRole('driver', 'admin');

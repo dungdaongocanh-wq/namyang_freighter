@@ -1,8 +1,7 @@
 <?php
 /**
- * Template in biên bản giao nhận hàng hóa — đơn lô
- * Dùng layout: views/layouts/print.php
- * Biến cần truyền: $shipment, $items (danh sách hàng), $signature (chữ ký), $photos
+ * Template in Biên Bản Giao Nhận Hàng Hóa — nhiều lô
+ * Biến cần truyền: $trip, $shipments, $customer, $carrier, $viewTitle
  */
 
 ob_start();
@@ -16,6 +15,8 @@ ob_start();
   .dn-date           { text-align: center; font-size: 10pt; margin-bottom: 10pt; }
 
   .section-title     { font-weight: bold; font-size: 10.5pt; margin: 8pt 0 3pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
+  .info-row          { display: flex; gap: 8pt; margin-bottom: 3pt; font-size: 10pt; }
+  .info-label        { font-weight: bold; white-space: nowrap; min-width: 120pt; }
 
   .carrier-line      { margin: 6pt 0; font-size: 10.5pt; }
   .carrier-box       { display: inline-block; width: 12pt; height: 12pt; border: 1.5px solid #000;
@@ -37,9 +38,8 @@ ob_start();
   .sign-box          { width: 30%; text-align: center; }
   .sign-box .sign-title { font-weight: bold; font-size: 10.5pt; margin-bottom: 2pt; }
   .sign-box .sign-note  { font-size: 8.5pt; color: #333; margin-bottom: 50pt; font-style: italic; }
-  .sign-img  { max-height: 50pt; max-width: 140pt; margin: 0 auto 4pt; display: block; }
 
-  hr.divider  { border: none; border-top: 1px solid #000; margin: 6pt 0; }
+  hr.divider { border: none; border-top: 1px solid #000; margin: 6pt 0; }
 
   @media print {
     body { margin: 0; padding: 0; }
@@ -65,14 +65,14 @@ ob_start();
 <!-- BÊN NHẬN HÀNG -->
 <div class="section-title">BÊN NHẬN HÀNG :</div>
 <div style="font-size:10pt;margin-bottom:6pt">
-  <div><strong><?= htmlspecialchars($shipment['company_name'] ?? $shipment['customer_code'] ?? '—') ?></strong></div>
-  <?php if (!empty($shipment['address'])): ?>
-  <div><?= htmlspecialchars($shipment['address']) ?></div>
+  <div><strong><?= htmlspecialchars($customer['company_name'] ?? '—') ?></strong></div>
+  <?php if (!empty($customer['address'])): ?>
+  <div><?= htmlspecialchars($customer['address']) ?></div>
   <?php endif; ?>
   <div style="margin-top:3pt">
-    Người đại diện: <strong><?= htmlspecialchars($deliveryNote['recipient_name'] ?? '—') ?></strong>
+    Người đại diện: <strong>_______________________</strong>
     &nbsp;&nbsp;&nbsp;
-    Số liên hệ: <strong><?= htmlspecialchars($shipment['phone'] ?? $deliveryNote['recipient_phone'] ?? '—') ?></strong>
+    Số liên hệ: <strong><?= htmlspecialchars($customer['phone'] ?? '—') ?></strong>
   </div>
 </div>
 
@@ -109,14 +109,16 @@ ob_start();
 </div>
 
 <!-- BÊN VẬN CHUYỂN -->
+<?php
+$carriers = ['Tâm Việt', 'Gia Bảo', 'KEN'];
+?>
 <div class="carrier-line" style="margin-top:6pt">
   <strong>BÊN VẬN CHUYỂN :</strong>
   &nbsp;&nbsp;&nbsp;
-  <span class="carrier-box">☐</span>Tâm Việt
+  <?php foreach ($carriers as $c): ?>
+  <span class="carrier-box"><?= (trim($carrier) === $c) ? '✓' : '' ?></span><?= htmlspecialchars($c) ?>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <span class="carrier-box">☐</span>Gia Bảo
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <span class="carrier-box">☐</span>KEN
+  <?php endforeach; ?>
 </div>
 
 <hr class="divider">
@@ -125,7 +127,7 @@ ob_start();
 <div style="font-weight:bold;font-size:10.5pt;margin-bottom:4pt">NỘI DUNG :</div>
 <?php
 $totalRows = 8;
-$dataRows  = !empty($items) ? min(count($items), $totalRows) : 1;
+$dataRows  = min(count($shipments), $totalRows);
 $emptyRows = $totalRows - $dataRows;
 ?>
 <table class="content-table">
@@ -139,47 +141,34 @@ $emptyRows = $totalRows - $dataRows;
     </tr>
   </thead>
   <tbody>
-    <?php if (!empty($items)): ?>
     <?php for ($i = 0; $i < $totalRows; $i++): ?>
-    <?php if ($i < count($items)): $item = $items[$i]; ?>
+    <?php if ($i < $dataRows): $s = $shipments[$i]; ?>
     <tr>
       <td><?= $i + 1 ?></td>
-      <td class="left"><?= htmlspecialchars($item['name'] ?? $item['description'] ?? $shipment['hawb'] ?? '') ?></td>
-      <td><?= $item['quantity'] ?? $shipment['packages'] ?></td>
+      <td class="left"><?= htmlspecialchars($s['hawb']) ?></td>
+      <td><?= $s['packages'] ?></td>
       <td>Kiện</td>
-      <td><?= number_format((float)($item['weight'] ?? $shipment['weight'] ?? 0), 0) ?></td>
+      <td><?= number_format($s['weight'], 0) ?></td>
       <td>Kgs</td>
       <td></td>
     </tr>
     <?php else: ?>
     <tr>
       <td><?= $i + 1 ?></td>
-      <td>&nbsp;</td><td>&nbsp;</td><td>Kiện</td><td>&nbsp;</td><td>Kgs</td><td>&nbsp;</td>
-    </tr>
-    <?php endif; ?>
-    <?php endfor; ?>
-    <?php else: ?>
-    <tr>
-      <td>1</td>
-      <td class="left"><?= htmlspecialchars($shipment['hawb']) ?></td>
-      <td><?= $shipment['packages'] ?></td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
       <td>Kiện</td>
-      <td><?= number_format((float)$shipment['weight'], 0) ?></td>
+      <td>&nbsp;</td>
       <td>Kgs</td>
-      <td></td>
+      <td>&nbsp;</td>
     </tr>
-    <?php for ($i = 1; $i < $totalRows; $i++): ?>
-    <tr>
-      <td><?= $i + 1 ?></td>
-      <td>&nbsp;</td><td>&nbsp;</td><td>Kiện</td><td>&nbsp;</td><td>Kgs</td><td>&nbsp;</td>
-    </tr>
-    <?php endfor; ?>
     <?php endif; ?>
+    <?php endfor; ?>
     <tr style="font-weight:bold">
       <td colspan="2" style="text-align:right">TỔNG CỘNG:</td>
-      <td><?= !empty($items) ? array_sum(array_column($items, 'quantity')) : $shipment['packages'] ?></td>
+      <td><?= array_sum(array_column($shipments, 'packages')) ?></td>
       <td>Kiện</td>
-      <td><?= !empty($items) ? number_format(array_sum(array_column($items, 'weight')), 0) : number_format((float)$shipment['weight'], 0) ?></td>
+      <td><?= number_format(array_sum(array_column($shipments, 'weight')), 0) ?></td>
       <td>Kgs</td>
       <td></td>
     </tr>
@@ -204,12 +193,11 @@ $emptyRows = $totalRows - $dataRows;
 
 <hr class="divider">
 
-<!-- Phần ký tên -->
+<!-- Ký tên -->
 <div class="sign-section">
   <div class="sign-box">
     <div class="sign-title">Người giao hàng</div>
     <div class="sign-note">(Ghi rõ họ tên số điện thoại)</div>
-    <div style="font-size:9pt"><?= htmlspecialchars($deliveryNote['created_by_name'] ?? '—') ?></div>
   </div>
   <div class="sign-box">
     <div class="sign-title">Đại diện hãng vận tải</div>
@@ -218,15 +206,9 @@ $emptyRows = $totalRows - $dataRows;
   <div class="sign-box">
     <div class="sign-title">Người nhận hàng</div>
     <div class="sign-note">(Ghi rõ họ tên số điện thoại)</div>
-    <?php if (!empty($signature)): ?>
-    <img src="<?= BASE_URL ?>/<?= $signature['signature_path'] ?>"
-         class="sign-img" alt="Chữ ký">
-    <?php endif; ?>
-    <div style="font-size:9pt"><?= htmlspecialchars($deliveryNote['recipient_name'] ?? '—') ?></div>
   </div>
 </div>
 
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../views/layouts/print.php';
-
