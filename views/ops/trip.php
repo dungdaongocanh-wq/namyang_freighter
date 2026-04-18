@@ -113,7 +113,7 @@ function loadShipmentsByCustomer(customerId) {
   allLoChecked = false;
   document.getElementById('selectedLoBadge').textContent = '0';
 
-  fetch('<?= json_encode(BASE_URL) ?>/?page=ops.shipments_by_customer&customer_id=' + encodeURIComponent(customerId))
+  fetch('<?= BASE_URL ?>/?page=ops.shipments_by_customer&customer_id=' + encodeURIComponent(customerId))
     .then(r => r.json())
     .then(data => {
       loading.style.display = 'none';
