@@ -566,7 +566,7 @@ function ocUploadPhotos(input, shipmentId) {
     });
 }
 
-let ocOpsRowIdx = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
+window.ocOpsRowIdx = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
 
 function ocAddOpsRow() {
   const container = document.getElementById('ocOpsCostRows');
@@ -574,17 +574,17 @@ function ocAddOpsRow() {
   const div = document.createElement('div');
   div.className = 'oc-ops-row d-flex gap-2 mb-2 align-items-center';
   div.innerHTML = `
-    <input type="text" name="ops_costs[${ocOpsRowIdx}][name]"
+    <input type="text" name="ops_costs[${window.ocOpsRowIdx}][name]"
            class="form-control form-control-sm" placeholder="Nội dung"
            style="border:2px solid #dc2626">
-    <input type="number" name="ops_costs[${ocOpsRowIdx}][amount]"
+    <input type="number" name="ops_costs[${window.ocOpsRowIdx}][amount]"
            class="form-control form-control-sm" placeholder="Số Tiền"
            style="width:130px;border:2px solid #dc2626" step="1000" min="0">
     <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
             onclick="this.closest('.oc-ops-row').remove()">✕</button>
   `;
   container.appendChild(div);
-  ocOpsRowIdx++;
+  window.ocOpsRowIdx++;
 }
 
 function ocSaveCosts() {
@@ -614,7 +614,7 @@ function ocSaveCosts() {
   });
 }
 
-let ocOpsRowIdxInfo = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
+window.ocOpsRowIdxInfo = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
 
 function ocAddOpsRowInfo() {
   const container = document.getElementById('ocOpsCostRowsInfo');
@@ -622,17 +622,17 @@ function ocAddOpsRowInfo() {
   const div = document.createElement('div');
   div.className = 'oc-ops-row-info d-flex gap-2 mb-2 align-items-center';
   div.innerHTML = `
-    <input type="text" name="ops_costs[${ocOpsRowIdxInfo}][name]"
+    <input type="text" name="ops_costs[${window.ocOpsRowIdxInfo}][name]"
            class="form-control form-control-sm" placeholder="Nội dung"
            style="border:2px solid #000">
-    <input type="number" name="ops_costs[${ocOpsRowIdxInfo}][amount]"
+    <input type="number" name="ops_costs[${window.ocOpsRowIdxInfo}][amount]"
            class="form-control form-control-sm" placeholder="Số Tiền"
            style="width:130px;border:2px solid #000" step="1000" min="0">
     <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
             onclick="this.closest('.oc-ops-row-info').remove()">✕</button>
   `;
   container.appendChild(div);
-  ocOpsRowIdxInfo++;
+  window.ocOpsRowIdxInfo++;
 }
 
 function ocSaveCostsInfo() {
