@@ -18,7 +18,10 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
       <div class="row g-3 align-items-end">
         <div class="col-md-3">
           <label class="form-label small fw-semibold">Khách hàng</label>
-          <select name="customer_id" class="form-select" required>
+          <select name="customer_id" class="form-select">
+            <option value="" <?= empty($quotation['customer_id']) ? 'selected' : '' ?>>
+              — Áp dụng cho tất cả KH không có báo giá riêng —
+            </option>
             <?php foreach ($customers as $c): ?>
             <option value="<?= $c['id'] ?>"
               <?= $c['id'] == $quotation['customer_id'] ? 'selected' : '' ?>>

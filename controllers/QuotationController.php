@@ -25,11 +25,15 @@ class QuotationController {
         $whereStr = implode(' AND ', $where);
 
         $stmt = $db->prepare("
-            SELECT q.*, c.company_name, c.customer_code
+            SELECT q.*, c.company_name, c.customer_code,
+                   COUNT(qi.id) as item_count,
+                   COALESCE(SUM(qi.amount),0) as total_amount
             FROM quotations q
             LEFT JOIN customers c ON q.customer_id = c.id
+            LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
             WHERE $whereStr AND q.is_active = 1
-            ORDER BY q.customer_id, q.service_name
+            GROUP BY q.id
+            ORDER BY CASE WHEN q.customer_id IS NULL THEN 1 ELSE 0 END, q.customer_id, q.name
         ");
         $stmt->execute($params);
         $quotations = $stmt->fetchAll();

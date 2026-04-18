@@ -29,8 +29,13 @@
           <?php foreach ($quotations as $q): ?>
           <tr>
             <td class="ps-4">
-              <span class="badge bg-light text-dark border"><?= htmlspecialchars($q['customer_code']) ?></span>
-              <div class="small text-muted"><?= htmlspecialchars($q['company_name'] ?? '') ?></div>
+              <?php if ($q['customer_id']): ?>
+                <span class="badge bg-light text-dark border"><?= htmlspecialchars($q['customer_code']) ?></span>
+                <div class="small text-muted"><?= htmlspecialchars($q['company_name'] ?? '') ?></div>
+              <?php else: ?>
+                <span class="badge bg-info text-white">🌐 Báo giá chung</span>
+                <div class="small text-muted">Áp dụng cho tất cả KH không có báo giá riêng</div>
+              <?php endif; ?>
             </td>
             <td class="fw-semibold"><?= htmlspecialchars($q['name'] ?? 'Báo giá') ?></td>
             <td class="small">
@@ -84,9 +89,9 @@
         <input type="hidden" name="id" value="0">
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label small fw-semibold">Khách hàng *</label>
-            <select name="customer_id" class="form-select" required>
-              <option value="">-- Chọn khách hàng --</option>
+            <label class="form-label small fw-semibold">Khách hàng</label>
+            <select name="customer_id" class="form-select">
+              <option value="">— Áp dụng cho tất cả KH không có báo giá riêng —</option>
               <?php foreach ($customers as $c): ?>
               <option value="<?= $c['id'] ?>">
                 <?= htmlspecialchars($c['customer_code']) ?> — <?= htmlspecialchars($c['company_name'] ?? '') ?>
