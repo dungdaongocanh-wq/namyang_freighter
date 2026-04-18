@@ -1,11 +1,16 @@
 <?php
 $statusMap = [
-    'pending_customs'  => ['Chờ TK',       'danger'],
-    'cleared'          => ['Đã TQ',         'warning'],
-    'waiting_pickup'   => ['Chờ lấy hàng', 'warning'],
-    'delivered'        => ['Đã giao',       'success'],
-    'debt'             => ['Công nợ',       'info'],
-    'pending_approval' => ['Chờ duyệt',     'secondary'],
+    'pending_customs'  => ['Chờ TK',        'danger'],
+    'cleared'          => ['Đã TQ',          'warning'],
+    'waiting_pickup'   => ['Chờ lấy hàng',  'warning'],
+    'in_transit'       => ['Đang giao',      'primary'],
+    'delivered'        => ['Đã giao',        'success'],
+    'kt_reviewing'     => ['KT duyệt',       'info'],
+    'pending_approval' => ['Chờ duyệt',      'secondary'],
+    'rejected'         => ['KH từ chối',     'danger'],
+    'debt'             => ['Công nợ',        'info'],
+    'invoiced'         => ['Đã xuất HĐ',    'success'],
+    'cancelled'        => ['Đã huỷ',         'secondary'],
 ];
 ?>
 
