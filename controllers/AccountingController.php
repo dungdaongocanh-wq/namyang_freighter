@@ -78,44 +78,91 @@ class AccountingController {
             exit;
         }
 
-        $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
-        $costs->execute([$id]);
-        $costs = $costs->fetchAll();
+        // Tách chi phí theo source
+        $costsStmt = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
+        $costsStmt->execute([$id]);
+        $allCosts = $costsStmt->fetchAll();
 
-        // Quotation của KH này
-        $quotation = $db->prepare("SELECT * FROM quotations WHERE customer_id=? AND is_active=1 LIMIT 1");
+        // Chi phí OPS (nội bộ)
+        $opsCosts = array_values(array_filter($allCosts, fn($c) => ($c['source'] ?? '') === 'ops'));
+
+        // Chi phí charge KH (quotation + kt + auto + manual)
+        $ktCosts = array_values(array_filter($allCosts, fn($c) => ($c['source'] ?? '') !== 'ops'));
+
+        // $costs giữ lại để tương thích với code cũ (toàn bộ)
+        $costs = $allCosts;
+
+        // Quotation của KH này + quotation items
+        $quotation = $db->prepare("SELECT * FROM quotations WHERE customer_id=? AND is_active=1 ORDER BY id DESC LIMIT 1");
         $quotation->execute([$shipment['customer_id']]);
         $quotation = $quotation->fetch();
+
+        $quotationItems = [];
+        if ($quotation) {
+            $qiStmt = $db->prepare("SELECT * FROM quotation_items WHERE quotation_id=? ORDER BY sort_order, id");
+            $qiStmt->execute([$quotation['id']]);
+            $quotationItems = $qiStmt->fetchAll();
+        }
 
         $viewTitle = 'Xét duyệt - ' . $shipment['hawb'];
         $viewFile  = __DIR__ . '/../views/accounting/review_detail.php';
         include __DIR__ . '/../views/layouts/main.php';
     }
 
-    // ===== LƯU CHI PHÍ (AJAX hoặc POST) =====
+    // ===== LƯU CHI PHÍ (AJAX) =====
     public function saveCosts() {
+        header('Content-Type: application/json');
         $db         = getDB();
         $shipmentId = (int)($_POST['shipment_id'] ?? 0);
-        $costs      = $_POST['costs'] ?? [];
 
-        // Xóa cũ
-        $db->prepare("DELETE FROM shipment_costs WHERE shipment_id=?")->execute([$shipmentId]);
-
-        // Insert mới
-        foreach ($costs as $c) {
-            if (empty($c['name']) || !isset($c['amount'])) continue;
-            $db->prepare("
-                INSERT INTO shipment_costs (shipment_id, cost_name, amount, source, created_by)
-                VALUES (?,?,?,'kt',?)
-            ")->execute([$shipmentId, trim($c['name']), (float)$c['amount'], $_SESSION['user_id']]);
+        if (!$shipmentId) {
+            echo json_encode(['success' => false, 'message' => 'Thiếu shipment_id']);
+            exit;
         }
 
-        if ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '' === 'XMLHttpRequest') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
-        } else {
-            header('Location: ' . BASE_URL . '/?page=accounting.review&id=' . $shipmentId . '&msg=saved');
+        // ── 1. Lưu chi phí OPS (nếu có thay đổi số tiền) ──
+        $opsCosts = $_POST['ops_costs'] ?? [];
+        foreach ($opsCosts as $opsId => $opsData) {
+            $opsId = (int)$opsId;
+            $amt   = (float)($opsData['amount'] ?? 0);
+            if ($opsId > 0) {
+                $db->prepare("UPDATE shipment_costs SET amount=? WHERE id=? AND shipment_id=? AND source='ops'")
+                   ->execute([$amt, $opsId, $shipmentId]);
+            }
         }
+
+        // ── 2. Xóa chi phí KT/quotation cũ, giữ lại OPS ──
+        $db->prepare("DELETE FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation','auto','manual')")
+           ->execute([$shipmentId]);
+
+        // ── 3. Insert chi phí KT mới (từ form) ──
+        $ktCosts = $_POST['kt_costs'] ?? [];
+        foreach ($ktCosts as $c) {
+            $name   = trim($c['name'] ?? '');
+            $amt    = (float)($c['amount'] ?? 0);
+            $source = in_array($c['source'] ?? '', ['kt','quotation','manual','auto']) ? $c['source'] : 'kt';
+            if ($name === '' && $amt == 0) continue;
+            $db->prepare("INSERT INTO shipment_costs (shipment_id, cost_name, amount, source, created_by) VALUES (?,?,?,?,?)")
+               ->execute([$shipmentId, $name, $amt, $source, $_SESSION['user_id']]);
+        }
+
+        // Ghi log
+        try {
+            $db->prepare("INSERT INTO shipment_logs (shipment_id, triggered_by, note, user_id) VALUES (?,'cost_updated','KT cập nhật chi phí',?)")
+               ->execute([$shipmentId, $_SESSION['user_id']]);
+        } catch (Exception $e) {}
+
+        // ── 4. Trả về danh sách chi phí KT mới để cập nhật "Báo giá tham chiếu" ──
+        $savedCosts = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation') ORDER BY id");
+        $savedCosts->execute([$shipmentId]);
+        $ktSaved = $savedCosts->fetchAll();
+        $ktTotal = array_sum(array_column($ktSaved, 'amount'));
+
+        echo json_encode([
+            'success'  => true,
+            'kt_costs' => $ktSaved,
+            'kt_total' => $ktTotal,
+        ]);
         exit;
     }
 
@@ -155,7 +202,7 @@ class AccountingController {
                 exit;
             }
             foreach (array_map('intval', $ids) as $sid) {
-                $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=?");
+                $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation','manual')");
                 $costCount->execute([$sid]);
                 if ($costCount->fetchColumn() > 0) {
                     StateTransition::transition($sid, 'kt_push_customer', $_SESSION['user_id']);
@@ -169,7 +216,7 @@ class AccountingController {
         $shipmentId = (int)($_POST['shipment_id'] ?? 0);
 
         // Phải có ít nhất 1 chi phí
-        $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=?");
+        $costCount = $db->prepare("SELECT COUNT(*) FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation','manual')");
         $costCount->execute([$shipmentId]);
         if ($costCount->fetchColumn() == 0) {
             header('Location: ' . BASE_URL . '/?page=accounting.push_customer&err=no_cost');
