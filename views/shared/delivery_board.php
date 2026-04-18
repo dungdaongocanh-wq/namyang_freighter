@@ -147,7 +147,7 @@ $role = $_SESSION['role'] ?? '';
                 <!-- Nhập chi phí -->
                 <button type="button" class="btn btn-xs btn-outline-primary"
                         style="font-size:0.75rem;padding:2px 8px"
-                        onclick="event.stopPropagation();dbOpenCostModal(<?= (int)$row['id'] ?>, <?= htmlspecialchars(json_encode($row['hawb']), ENT_QUOTES) ?>)"
+                        onclick="event.stopPropagation();dbOpenCostModal(<?= (int)$row['id'] ?>, <?= json_encode($row['hawb']) ?>)"
                         title="Nhập chi phí">💰</button>
 
                 <!-- Xác nhận giao (chỉ khi in_transit) -->

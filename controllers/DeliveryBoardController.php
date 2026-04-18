@@ -200,8 +200,10 @@ class DeliveryBoardController {
         try {
             $db->prepare("INSERT INTO shipment_logs (shipment_id,triggered_by,note,user_id) VALUES (?,'cost_updated','Cập nhật chi phí từ bảng theo dõi',?)")
                ->execute([$shipmentId, $_SESSION['user_id']]);
-        } catch(Exception $e) {}
-
+        } catch(Exception $e) {
+            // Non-critical log write; failure does not affect the cost save result
+            error_log('[DeliveryBoardController::saveCosts] log insert failed: ' . $e->getMessage());
+        }
         echo json_encode(['success' => true]);
         exit;
     }
