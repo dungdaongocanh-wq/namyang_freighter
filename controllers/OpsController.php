@@ -367,4 +367,92 @@ class OpsController {
     public function pickup() {
         $this->shipmentList();
     }
+
+    public function printDeliveryNote() {
+        $db = getDB();
+        $id = (int)($_GET['id'] ?? 0);
+
+        if (!$id) {
+            header('Location: ' . BASE_URL . '/?page=ops.dashboard');
+            exit;
+        }
+
+        // Lấy thông tin lô hàng + khách hàng
+        $stmt = $db->prepare("
+            SELECT s.*, c.company_name, c.address, c.phone, c.email
+            FROM shipments s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.id = ?
+        ");
+        $stmt->execute([$id]);
+        $shipment = $stmt->fetch();
+
+        if (!$shipment) {
+            header('Location: ' . BASE_URL . '/?page=ops.dashboard&err=not_found');
+            exit;
+        }
+
+        // Lấy delivery note nếu có (lấy cái mới nhất)
+        $dnStmt = $db->prepare("
+            SELECT dn.*, u.full_name as created_by_name
+            FROM delivery_notes dn
+            LEFT JOIN users u ON dn.created_by = u.id
+            WHERE dn.shipment_id = ?
+            ORDER BY dn.id DESC
+            LIMIT 1
+        ");
+        $dnStmt->execute([$id]);
+        $deliveryNote = $dnStmt->fetch();
+
+        // Nếu chưa có delivery_note → tạo mới tự động
+        if (!$deliveryNote) {
+            $noteCode = 'DN-' . date('Ymd') . '-' . str_pad($id, 4, '0', STR_PAD_LEFT);
+            try {
+                $db->prepare("
+                    INSERT INTO delivery_notes (shipment_id, note_code, created_by, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ")->execute([$id, $noteCode, $_SESSION['user_id']]);
+                $dnId = $db->lastInsertId();
+                $db->prepare("UPDATE delivery_notes SET printed_at=NOW(), printed_by=? WHERE id=?")
+                   ->execute([$_SESSION['user_id'], $dnId]);
+                $dnStmt2 = $db->prepare("
+                    SELECT dn.*, u.full_name as created_by_name
+                    FROM delivery_notes dn
+                    LEFT JOIN users u ON dn.created_by = u.id
+                    WHERE dn.id = ?
+                ");
+                $dnStmt2->execute([$dnId]);
+                $deliveryNote = $dnStmt2->fetch();
+            } catch (Exception $e) {
+                $deliveryNote = [
+                    'id'               => 0,
+                    'note_code'        => 'DN-' . date('Ymd') . '-' . str_pad($id, 4, '0', STR_PAD_LEFT),
+                    'created_by_name'  => $_SESSION['full_name'] ?? 'OPS',
+                    'recipient_name'   => '',
+                    'recipient_phone'  => '',
+                    'delivery_address' => $shipment['address'] ?? '',
+                ];
+            }
+        } else {
+            if (empty($deliveryNote['printed_at'])) {
+                $db->prepare("UPDATE delivery_notes SET printed_at=NOW(), printed_by=? WHERE id=?")
+                   ->execute([$_SESSION['user_id'], $deliveryNote['id']]);
+            }
+        }
+
+        // Lấy chữ ký điện tử nếu có
+        $sigStmt = $db->prepare("SELECT * FROM delivery_signatures WHERE shipment_id=? ORDER BY id DESC LIMIT 1");
+        $sigStmt->execute([$id]);
+        $signature = $sigStmt->fetch();
+
+        // Ảnh lô hàng
+        $photoStmt = $db->prepare("SELECT * FROM shipment_photos WHERE shipment_id=? ORDER BY id");
+        $photoStmt->execute([$id]);
+        $photos = $photoStmt->fetchAll();
+
+        $items = [];
+
+        include __DIR__ . '/../templates/delivery_note.php';
+        exit;
+    }
 }

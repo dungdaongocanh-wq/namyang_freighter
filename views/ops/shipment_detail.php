@@ -162,6 +162,14 @@ $sl = $statusLabels[$shipment['status']] ?? $shipment['status'];
   </button>
   <?php endif; ?>
 
+  <?php if (in_array($shipment['status'], ['waiting_pickup','in_transit','delivered','kt_reviewing','pending_approval','rejected','debt','invoiced'])): ?>
+  <a href="<?= BASE_URL ?>/?page=ops.print_delivery_note&id=<?= $shipment['id'] ?>"
+     target="_blank"
+     class="btn btn-mobile-primary btn-outline-secondary">
+    🖨️ In biên bản giao hàng
+  </a>
+  <?php endif; ?>
+
   <a href="<?= BASE_URL ?>/?page=ops.costs&id=<?= $shipment['id'] ?>"
      class="btn btn-mobile-primary btn-outline-primary">
     💰 Nhập chi phí
