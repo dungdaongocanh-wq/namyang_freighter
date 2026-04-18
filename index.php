@@ -68,6 +68,11 @@ case 'cs.delete_customs_record':
     (new ShipmentController())->deleteCustomsRecord();
     break;
 
+case 'cs.cancel':
+    requireRole(['cs', 'admin']);
+    (new ShipmentController())->cancelShipment();
+    break;
+
        // ===== OPS =====
     case 'ops.dashboard':
         requireRole(['ops', 'admin']);
@@ -279,6 +284,39 @@ case 'admin.settings':
         requireRole('admin', 'accounting', 'cs');
         $controller = new ReportController();
         $controller->export();
+        break;
+
+    // ===== Quotation =====
+    case 'quotation.index':
+    case 'quotation.create':
+    case 'quotation.store':
+    case 'quotation.show':
+    case 'quotation.edit':
+    case 'quotation.update':
+    case 'quotation.delete':
+        requireRole(['admin', 'accounting']);
+        (new QuotationController())->dispatch();
+        break;
+
+    // ===== Debt =====
+    case 'debt.index':
+        requireRole(['admin', 'accounting', 'customer']);
+        (new DebtController())->index();
+        break;
+
+    case 'debt.show':
+        requireRole(['admin', 'accounting', 'customer']);
+        (new DebtController())->show();
+        break;
+
+    case 'debt.mark_paid':
+        requireRole(['admin', 'accounting']);
+        (new DebtController())->markPaid();
+        break;
+
+    case 'debt.export':
+        requireRole(['admin', 'accounting']);
+        (new DebtController())->export();
         break;
 
     // ===== Notifications =====

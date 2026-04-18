@@ -291,9 +291,75 @@ class OpsController {
     }
 
     public function complete() {
+        $db = getDB();
+        $id = (int)($_GET['id'] ?? $_POST['shipment_id'] ?? 0);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Hiển thị màn hình xác nhận hoàn thành
+            if (!$id) {
+                header('Location: ' . BASE_URL . '/?page=ops.dashboard');
+                exit;
+            }
+
+            $stmt = $db->prepare("
+                SELECT s.*, c.company_name, c.customer_code
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                WHERE s.id = ?
+            ");
+            $stmt->execute([$id]);
+            $shipment = $stmt->fetch();
+
+            if (!$shipment) {
+                header('Location: ' . BASE_URL . '/?page=ops.dashboard&err=not_found');
+                exit;
+            }
+
+            $photos = $db->prepare("SELECT * FROM shipment_photos WHERE shipment_id=? ORDER BY id DESC");
+            $photos->execute([$id]);
+            $photos = $photos->fetchAll();
+
+            // Chuyến đang mở (có thể gán lô vào)
+            $availableTrips = $db->query("
+                SELECT dt.*, u.full_name as driver_name,
+                       COUNT(dti.id) as item_count
+                FROM delivery_trips dt
+                LEFT JOIN users u ON dt.driver_id = u.id
+                LEFT JOIN delivery_trip_items dti ON dt.id = dti.trip_id
+                WHERE dt.status = 'pending' AND dt.trip_date = CURDATE()
+                GROUP BY dt.id
+                ORDER BY dt.id DESC
+            ")->fetchAll();
+
+            $viewTitle = 'Hoàn thành lô — ' . $shipment['hawb'];
+            $viewFile  = __DIR__ . '/../views/ops/complete.php';
+            include __DIR__ . '/../views/layouts/mobile.php';
+            return;
+        }
+
+        // POST — xử lý xác nhận hoàn thành / gán chuyến
+        $action = $_POST['action'] ?? 'confirm_complete';
+
+        if ($action === 'assign_trip') {
+            $tripId = (int)($_POST['trip_id'] ?? 0);
+            if ($tripId && $id) {
+                $db->prepare("INSERT IGNORE INTO delivery_trip_items (trip_id, shipment_id) VALUES (?,?)")
+                   ->execute([$tripId, $id]);
+                try { StateTransition::transition($id, 'ops_complete', $_SESSION['user_id'], 'Gán vào chuyến #' . $tripId); } catch (Exception $e) {}
+            }
+            header('Location: ' . BASE_URL . '/?page=ops.complete&id=' . $id . '&msg=saved');
+            exit;
+        }
+
+        // Xác nhận hoàn thành → chuyển trạng thái
+        if ($id) {
+            try { StateTransition::transition($id, 'auto_to_kt', $_SESSION['user_id']); } catch (Exception $e) {}
+            header('Location: ' . BASE_URL . '/?page=ops.dashboard&msg=saved');
+            exit;
+        }
+
+        // Fallback JSON (gọi từ AJAX cũ)
         header('Content-Type: application/json');
-        $shipmentId = (int)($_POST['shipment_id'] ?? 0);
-        try { StateTransition::transition($shipmentId, 'auto_to_kt', $_SESSION['user_id']); } catch (Exception $e) {}
         echo json_encode(['success' => true]);
         exit;
     }

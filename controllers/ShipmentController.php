@@ -422,4 +422,69 @@ public function deleteCustomsRecord() {
         exit;
     }
 
+    // ===== HUỶ LÔ HÀNG =====
+    public function cancelShipment() {
+        $db = getDB();
+        $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+
+        // Trạng thái không được phép huỷ
+        $noCancel = ['in_transit', 'delivered', 'kt_reviewing', 'pending_approval', 'invoiced', 'cancelled'];
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Xử lý huỷ
+            $reason = trim($_POST['reason'] ?? '');
+            if (!$reason) {
+                header('Location: ' . BASE_URL . '/?page=cs.cancel&id=' . $id . '&err=no_reason');
+                exit;
+            }
+
+            $stmt = $db->prepare("SELECT id, status FROM shipments WHERE id = ?");
+            $stmt->execute([$id]);
+            $shipment = $stmt->fetch();
+
+            if (!$shipment || in_array($shipment['status'], $noCancel)) {
+                header('Location: ' . BASE_URL . '/?page=cs.list&err=cannot_cancel');
+                exit;
+            }
+
+            $db->prepare("UPDATE shipments SET status='cancelled', updated_at=NOW() WHERE id=?")
+               ->execute([$id]);
+
+            // Ghi log
+            try {
+                $db->prepare("
+                    INSERT INTO shipment_logs (shipment_id, action, note, user_id)
+                    VALUES (?, 'cancelled', ?, ?)
+                ")->execute([$id, $reason, $_SESSION['user_id']]);
+            } catch (Exception $e) {}
+
+            header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
+            exit;
+        }
+
+        // GET — hiện form huỷ
+        if (!$id) {
+            header('Location: ' . BASE_URL . '/?page=cs.list');
+            exit;
+        }
+
+        $stmt = $db->prepare("
+            SELECT s.*, c.company_name
+            FROM shipments s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.id = ?
+        ");
+        $stmt->execute([$id]);
+        $shipment = $stmt->fetch();
+
+        if (!$shipment) {
+            header('Location: ' . BASE_URL . '/?page=cs.list&err=not_found');
+            exit;
+        }
+
+        $viewTitle = 'Huỷ lô hàng — ' . $shipment['hawb'];
+        $viewFile  = __DIR__ . '/../views/cs/cancel.php';
+        include __DIR__ . '/../views/layouts/main.php';
+    }
+
 } // ← Đóng class ShipmentController
