@@ -391,7 +391,7 @@ class OpsController {
         $opsCostMonth = (float)$stmt->fetchColumn();
 
         $stmt = $db->prepare("
-            SELECT cost_name, SUM(amount) as total, COUNT(*) as cnt
+            SELECT cost_name, SUM(amount) as total
             FROM shipment_costs
             WHERE source='ops' AND created_by=? AND DATE_FORMAT(created_at,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')
             GROUP BY cost_name

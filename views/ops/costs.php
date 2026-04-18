@@ -42,7 +42,7 @@
       <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-bottom:6px">Top chi phí tháng này:</div>
       <?php foreach ($opsCostBreakdown as $b): ?>
       <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:0.78rem">
-        <span class="text-muted"><?= htmlspecialchars($b['cost_name'] ?: '(không tên)') ?></span>
+        <span class="text-muted"><?= htmlspecialchars($b['cost_name'] ?: '(không tên)', ENT_QUOTES, 'UTF-8') ?></span>
         <span class="fw-semibold text-danger"><?= number_format($b['total']) ?>đ</span>
       </div>
       <?php endforeach; ?>
