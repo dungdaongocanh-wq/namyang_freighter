@@ -602,7 +602,8 @@ function ocSaveCosts() {
   .then(d => {
     if (btn) { btn.disabled = false; }
     if (d.success) {
-      if (btn) { btn.innerHTML = '✅ Đã lưu!'; setTimeout(() => { btn.innerHTML = '💾 Lưu'; }, 2000); }
+      if (btn) { btn.innerHTML = '✅ Đã lưu!'; }
+      setTimeout(() => { location.reload(); }, 1200);
     } else {
       if (btn) btn.innerHTML = '💾 Lưu';
       alert(d.message || 'Lỗi lưu chi phí!');
@@ -610,7 +611,7 @@ function ocSaveCosts() {
   })
   .catch(() => {
     if (btn) { btn.disabled = false; btn.innerHTML = '💾 Lưu'; }
-    alert('Lỗi kết nối!');
+    alert('Lỗi kết nối! Vui lòng thử lại.');
   });
 }
 
@@ -650,7 +651,8 @@ function ocSaveCostsInfo() {
   .then(d => {
     if (btn) { btn.disabled = false; }
     if (d.success) {
-      if (btn) { btn.innerHTML = '✅ Đã lưu!'; setTimeout(() => { btn.innerHTML = 'Lưu'; }, 2000); }
+      if (btn) { btn.innerHTML = '✅ Đã lưu!'; }
+      setTimeout(() => { location.reload(); }, 1200);
     } else {
       if (btn) btn.innerHTML = 'Lưu';
       alert(d.message || 'Lỗi lưu chi phí!');
@@ -658,7 +660,7 @@ function ocSaveCostsInfo() {
   })
   .catch(() => {
     if (btn) { btn.disabled = false; btn.innerHTML = 'Lưu'; }
-    alert('Lỗi kết nối!');
+    alert('Lỗi kết nối! Vui lòng thử lại.');
   });
 }
 </script>
