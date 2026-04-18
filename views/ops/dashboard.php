@@ -67,28 +67,25 @@ $statusLabel = [
       $color = $statusLabel[$s['status']][2] ?? '#334155';
       $lbl   = $statusLabel[$s['status']][0] ?? $s['status'];
     ?>
-    <a href="<?= BASE_URL ?>/?page=ops.detail&id=<?= $s['id'] ?>"
-       class="text-decoration-none">
-      <div class="d-flex align-items-center gap-3 p-2 mb-2 rounded-3"
-           style="background:#f8fafc;border-left:4px solid <?= $color ?>">
-        <div class="flex-grow-1">
-          <div class="fw-semibold text-dark"><?= htmlspecialchars($s['hawb']) ?></div>
-          <div style="font-size:0.78rem;color:#64748b">
-            <?= htmlspecialchars($s['customer_code']) ?> ·
-            <?= $s['packages'] ?> kiện · <?= number_format($s['weight'],1) ?> kg
-          </div>
-          <div style="font-size:0.72rem;color:#94a3b8">
-            Active: <?= date('d/m', strtotime($s['active_date'])) ?>
-          </div>
+    <div class="d-flex align-items-center gap-3 p-2 mb-2 rounded-3"
+         data-id="<?= $s['id'] ?>" style="background:#f8fafc;border-left:4px solid <?= $color ?>;cursor:pointer">
+      <div class="flex-grow-1">
+        <div class="fw-semibold text-dark"><?= htmlspecialchars($s['hawb']) ?></div>
+        <div style="font-size:0.78rem;color:#64748b">
+          <?= htmlspecialchars($s['customer_code']) ?> ·
+          <?= $s['packages'] ?> kiện · <?= number_format($s['weight'],1) ?> kg
         </div>
-        <div>
-          <span class="badge" style="background:<?= $bg ?>;color:<?= $color ?>;font-size:0.7rem">
-            <?= $lbl ?>
-          </span>
-          <div class="text-end mt-1" style="font-size:0.7rem;color:#94a3b8">›</div>
+        <div style="font-size:0.72rem;color:#94a3b8">
+          Active: <?= date('d/m', strtotime($s['active_date'])) ?>
         </div>
       </div>
-    </a>
+      <div>
+        <span class="badge" style="background:<?= $bg ?>;color:<?= $color ?>;font-size:0.7rem">
+          <?= $lbl ?>
+        </span>
+        <div class="text-end mt-1" style="font-size:0.7rem;color:#94a3b8">›</div>
+      </div>
+    </div>
     <?php endforeach; ?>
     <?php endif; ?>
   </div>

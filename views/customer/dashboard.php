@@ -132,8 +132,7 @@ $statusLabel = [
           <?php foreach ($recentShipments as $s):
             [$lbl, $clr] = $statusLabel[$s['status']] ?? [$s['status'], 'secondary'];
           ?>
-          <tr style="cursor:pointer"
-              onclick="location.href='<?= BASE_URL ?>/?page=customer.shipment_detail&id=<?= $s['id'] ?>'">
+          <tr data-id="<?= $s['id'] ?>" style="cursor:pointer">
             <td class="ps-4 fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
             <td>
               <div><?= htmlspecialchars($s['flight_no'] ?? '-') ?></div>

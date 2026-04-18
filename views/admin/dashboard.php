@@ -7,6 +7,21 @@ $stats['total_customers'] = $stats['total_customers'] ?? 0;
 $stats['total_debt']      = $stats['total_debt']      ?? 0;
 $statusBreakdown          = $statusBreakdown          ?? [];
 $importLogs               = $importLogs               ?? [];
+$recentShipments          = $recentShipments          ?? [];
+
+$adminStatusMap = [
+    'pending_customs'  => ['Chờ tờ khai',   'danger'],
+    'cleared'          => ['Đã thông quan',  'warning'],
+    'waiting_pickup'   => ['Chờ lấy hàng',  'orange'],
+    'in_transit'       => ['Đang giao',      'primary'],
+    'delivered'        => ['Đã giao',        'success'],
+    'kt_reviewing'     => ['KT duyệt',       'info'],
+    'pending_approval' => ['Chờ KH duyệt',   'purple'],
+    'rejected'         => ['KH từ chối',     'dark'],
+    'debt'             => ['Công nợ',         'secondary'],
+    'invoiced'         => ['Đã xuất HĐ',     'success'],
+    'cancelled'        => ['Đã huỷ',         'secondary'],
+];
 ?>
 
 <div class="row g-3 mb-4">
@@ -110,4 +125,61 @@ $importLogs               = $importLogs               ?? [];
     </div>
   </div>
 </div>
+</div>
+
+<!-- Lô hàng mới nhất -->
+<div class="card mt-4" style="border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
+  <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center"
+       style="border-radius:12px 12px 0 0">
+    <h6 class="mb-0 fw-bold">📦 Lô hàng mới nhất</h6>
+    <a href="<?= BASE_URL ?>/?page=cs.list" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+  </div>
+  <div class="card-body p-0">
+    <?php if (empty($recentShipments)): ?>
+    <div class="text-center text-muted py-5 small">
+      <div style="font-size:2.5rem">📭</div>
+      <p class="mt-2">Chưa có lô hàng nào</p>
+    </div>
+    <?php else: ?>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle" style="font-size:0.85rem">
+        <thead style="background:#f8fafc;color:#64748b;font-size:0.78rem">
+          <tr>
+            <th class="ps-4">HAWB</th>
+            <th>Khách hàng</th>
+            <th>Flight</th>
+            <th>Kiện / KG</th>
+            <th>Active date</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php
+          $adminBadgeStyleMap = ['orange' => 'background:#ffedd5;color:#c2410c', 'purple' => 'background:#f3e8ff;color:#7e22ce'];
+          foreach ($recentShipments as $s):
+            [$lbl, $clr] = $adminStatusMap[$s['status']] ?? [$s['status'], 'secondary'];
+          ?>
+          <tr data-id="<?= $s['id'] ?>" style="cursor:pointer">
+            <td class="ps-4 fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
+            <td>
+              <span class="badge bg-light text-dark"><?= htmlspecialchars($s['customer_code'] ?? '') ?></span>
+              <small class="text-muted d-block"><?= htmlspecialchars($s['company_name'] ?? '') ?></small>
+            </td>
+            <td><?= htmlspecialchars($s['flight_no'] ?? '-') ?></td>
+            <td><?= (int)$s['packages'] ?> / <?= number_format((float)$s['weight'], 1) ?> kg</td>
+            <td><?= $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '-' ?></td>
+            <td>
+              <?php if (isset($adminBadgeStyleMap[$clr])): ?>
+              <span class="badge" style="<?= $adminBadgeStyleMap[$clr] ?>"><?= $lbl ?></span>
+              <?php else: ?>
+              <span class="badge bg-<?= $clr ?>"><?= $lbl ?></span>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif; ?>
+  </div>
 </div>

@@ -319,6 +319,11 @@ case 'admin.settings':
         (new DebtController())->export();
         break;
 
+    // ===== Shipment Modal (AJAX partial) =====
+    case 'shipment.modal':
+        (new ShipmentController())->modal();
+        break;
+
     // ===== Notifications =====
     case 'notifications.read':
         $controller = new NotificationController();

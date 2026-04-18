@@ -288,10 +288,91 @@ public function deleteCustomsRecord() {
             'total_customers' => $db->query("SELECT COUNT(*) FROM customers WHERE is_active=1")->fetchColumn(),
             'total_users'     => $db->query("SELECT COUNT(*) FROM users WHERE is_active=1")->fetchColumn(),
             'pending'         => $db->query("SELECT COUNT(*) FROM shipments WHERE status NOT IN ('delivered','invoiced')")->fetchColumn(),
+            'total_debt'      => $db->query("SELECT COALESCE(SUM(total_amount),0) FROM debts WHERE status='open'")->fetchColumn(),
         ];
+
+        $stmt = $db->prepare("
+            SELECT s.*, c.company_name
+            FROM shipments s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            ORDER BY s.id DESC
+            LIMIT 10
+        ");
+        $stmt->execute();
+        $recentShipments = $stmt->fetchAll();
+
         $viewTitle = 'Admin Dashboard';
         $viewFile  = __DIR__ . '/../views/admin/dashboard.php';
         include __DIR__ . '/../views/layouts/main.php';
+    }
+
+    // ===== SHIPMENT MODAL (AJAX partial) =====
+    public function modal() {
+        if (!isset($_SESSION['user_id'])) {
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<p class="text-muted p-3">Vui lòng đăng nhập.</p>';
+            exit;
+        }
+        header('Content-Type: text/html; charset=utf-8');
+        $db = getDB();
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) {
+            echo '<p class="text-muted p-3">Không tìm thấy lô hàng.</p>';
+            exit;
+        }
+
+        $stmt = $db->prepare("
+            SELECT s.*, c.company_name, c.address, c.phone, c.email
+            FROM shipments s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.id = ?
+        ");
+        $stmt->execute([$id]);
+        $s = $stmt->fetch();
+        if (!$s) {
+            echo '<p class="text-muted p-3">Không tìm thấy lô hàng.</p>';
+            exit;
+        }
+
+        // Nếu role customer, chỉ xem lô của mình
+        if (($_SESSION['role'] ?? '') === 'customer') {
+            $customerId = (int)($_SESSION['customer_id'] ?? 0);
+            if ((int)$s['customer_id'] !== $customerId) {
+                echo '<p class="text-muted p-3">Bạn không có quyền xem lô hàng này.</p>';
+                exit;
+            }
+        }
+
+        $customs = $db->prepare("SELECT * FROM shipment_customs WHERE shipment_id = ? ORDER BY id");
+        $customs->execute([$id]);
+        $customsList = $customs->fetchAll();
+
+        $photos = $db->prepare("SELECT * FROM shipment_photos WHERE shipment_id = ? ORDER BY id");
+        $photos->execute([$id]);
+        $photoList = $photos->fetchAll();
+
+        $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id = ? ORDER BY id");
+        $costs->execute([$id]);
+        $costList = $costs->fetchAll();
+        $totalCost = array_sum(array_column($costList, 'amount'));
+
+        $logs = $db->prepare("
+            SELECT sl.*, u.full_name
+            FROM shipment_logs sl
+            LEFT JOIN users u ON sl.user_id = u.id
+            WHERE sl.shipment_id = ?
+            ORDER BY sl.created_at DESC
+            LIMIT 5
+        ");
+        $logs->execute([$id]);
+        $logList = $logs->fetchAll();
+
+        $sig = $db->prepare("SELECT * FROM delivery_signatures WHERE shipment_id = ? ORDER BY id DESC LIMIT 1");
+        $sig->execute([$id]);
+        $signature = $sig->fetch() ?: null;
+
+        include __DIR__ . '/../views/shared/shipment_modal_content.php';
+        exit;
     }
 
     // ===== EDIT =====
