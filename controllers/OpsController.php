@@ -552,34 +552,40 @@ class OpsController {
 
     public function saveCostsModal() {
         header('Content-Type: application/json');
-        $db         = getDB();
-        $shipmentId = (int)($_POST['shipment_id'] ?? 0);
-        if (!$shipmentId) { echo json_encode(['success'=>false,'message'=>'Thiếu ID']); exit; }
+        try {
+            $db         = getDB();
+            $shipmentId = (int)($_POST['shipment_id'] ?? 0);
+            if (!$shipmentId) { echo json_encode(['success'=>false,'message'=>'Thiếu ID lô hàng']); exit; }
 
-        $db->prepare("DELETE FROM shipment_costs WHERE shipment_id = ?")->execute([$shipmentId]);
+            // Xóa chi phí từ quotation và ops (giữ nguồn khác nếu có)
+            $db->prepare("DELETE FROM shipment_costs WHERE shipment_id = ? AND source IN ('quotation','ops')")->execute([$shipmentId]);
 
-        // Chi phí từ báo giá
-        $qIds = array_unique(array_map('intval', $_POST['quotation_items'] ?? []));
-        if (!empty($qIds)) {
-            $ph    = implode(',', array_fill(0, count($qIds), '?'));
-            $items = $db->prepare("SELECT id, description, amount FROM quotation_items WHERE id IN ($ph)");
-            $items->execute($qIds);
-            foreach ($items->fetchAll() as $qi) {
-                $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,quotation_item_id,created_by) VALUES (?,?,?,'quotation',?,?)")
-                   ->execute([$shipmentId, $qi['description'], (float)$qi['amount'], (int)$qi['id'], $_SESSION['user_id']]);
+            // Chi phí từ báo giá
+            $qIds = array_values(array_unique(array_map('intval', $_POST['quotation_items'] ?? [])));
+            if (!empty($qIds)) {
+                $ph    = implode(',', array_fill(0, count($qIds), '?'));
+                $items = $db->prepare("SELECT id, description, amount FROM quotation_items WHERE id IN ($ph)");
+                $items->execute($qIds);
+                foreach ($items->fetchAll() as $qi) {
+                    $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,quotation_item_id,created_by) VALUES (?,?,?,'quotation',?,?)")
+                       ->execute([$shipmentId, $qi['description'], (float)$qi['amount'], (int)$qi['id'], $_SESSION['user_id']]);
+                }
             }
-        }
 
-        // Chi phí OPS tự điền
-        foreach ($_POST['ops_costs'] ?? [] as $c) {
-            $n = trim($c['name'] ?? ''); $a = (float)($c['amount'] ?? 0);
-            if ($n === '' && $a == 0) continue;
-            $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,created_by) VALUES (?,?,?,'ops',?)")
-               ->execute([$shipmentId, $n, $a, $_SESSION['user_id']]);
-        }
+            // Chi phí OPS tự điền
+            foreach ($_POST['ops_costs'] ?? [] as $c) {
+                $n = trim($c['name'] ?? ''); $a = (float)($c['amount'] ?? 0);
+                if ($n === '' && $a == 0) continue;
+                $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,created_by) VALUES (?,?,?,'ops',?)")
+                   ->execute([$shipmentId, $n, $a, $_SESSION['user_id']]);
+            }
 
-        try { $db->prepare("INSERT INTO shipment_logs (shipment_id,triggered_by,note,user_id) VALUES (?,'cost_updated','OPS cập nhật chi phí từ modal',?)")->execute([$shipmentId,$_SESSION['user_id']]); } catch(Exception $e){}
-        echo json_encode(['success' => true]);
+            try { $db->prepare("INSERT INTO shipment_logs (shipment_id,triggered_by,note,user_id) VALUES (?,'cost_updated','OPS cập nhật chi phí từ modal',?)")->execute([$shipmentId,$_SESSION['user_id']]); } catch(Exception $e){}
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            error_log('[saveCostsModal] ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Lỗi lưu chi phí: ' . $e->getMessage()]);
+        }
         exit;
     }
 }
