@@ -387,18 +387,7 @@ public function deleteCustomsRecord() {
         // Load quotation items cho khách hàng (dùng trong tab chi phí OPS)
         // Ưu tiên báo giá riêng, fallback sang báo giá chung nếu không có
         $quotationItemsList = [];
-        $customerId = $s['customer_id'] ?? null;
-        $quotationId = null;
-        if ($customerId) {
-            $qStmt = $db->prepare("SELECT id FROM quotations WHERE customer_id = ? AND is_active = 1 ORDER BY id DESC LIMIT 1");
-            $qStmt->execute([$customerId]);
-            $quotationId = $qStmt->fetchColumn() ?: null;
-        }
-        if (!$quotationId) {
-            $qStmt = $db->prepare("SELECT id FROM quotations WHERE customer_id IS NULL AND is_active = 1 ORDER BY id DESC LIMIT 1");
-            $qStmt->execute();
-            $quotationId = $qStmt->fetchColumn() ?: null;
-        }
+        $quotationId = QuotationHelper::getQuotationId($db, $s['customer_id'] ? (int)$s['customer_id'] : null);
         if ($quotationId) {
             $qiStmt = $db->prepare("
                 SELECT qi.id, qi.description, qi.unit_price, qi.quantity, qi.amount, qi.note, qi.currency

@@ -93,18 +93,7 @@ class AccountingController {
         $costs = $allCosts;
 
         // Quotation của KH này + quotation items (ưu tiên báo giá riêng, fallback sang báo giá chung)
-        $quotationId = null;
-        $customerId  = $shipment['customer_id'] ?? null;
-        if ($customerId) {
-            $qStmt = $db->prepare("SELECT id FROM quotations WHERE customer_id = ? AND is_active = 1 ORDER BY id DESC LIMIT 1");
-            $qStmt->execute([$customerId]);
-            $quotationId = $qStmt->fetchColumn() ?: null;
-        }
-        if (!$quotationId) {
-            $qStmt = $db->prepare("SELECT id FROM quotations WHERE customer_id IS NULL AND is_active = 1 ORDER BY id DESC LIMIT 1");
-            $qStmt->execute();
-            $quotationId = $qStmt->fetchColumn() ?: null;
-        }
+        $quotationId = QuotationHelper::getQuotationId($db, $shipment['customer_id'] ? (int)$shipment['customer_id'] : null);
 
         $quotation = null;
         if ($quotationId) {
