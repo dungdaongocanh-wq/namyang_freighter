@@ -120,6 +120,104 @@ $role = $_SESSION['role'] ?? '';
       <?php endif; ?>
     </div>
     <?php endif; ?>
+
+  <?php if ($role === 'ops'): ?>
+  <!-- Action buttons for OPS -->
+  <div class="d-flex gap-2 flex-wrap mt-3 mb-3">
+    <a href="<?= BASE_URL ?>/?page=ops.detail&id=<?= (int)$s['id'] ?>"
+       class="btn btn-sm btn-primary">📋 Chi tiết OPS</a>
+
+    <?php if ($s['status'] === 'waiting_pickup'): ?>
+    <a href="<?= BASE_URL ?>/?page=ops.trip&id=<?= (int)$s['id'] ?>"
+       class="btn btn-sm btn-warning">🚚 Tạo chuyến giao</a>
+    <?php endif; ?>
+
+    <?php if ($s['status'] === 'in_transit'): ?>
+    <button class="btn btn-sm btn-success"
+            onclick="ocMarkDelivered(<?= (int)$s['id'] ?>)">✅ Đánh dấu đã giao</button>
+    <?php endif; ?>
+
+    <?php if (in_array($s['status'], ['waiting_pickup','in_transit','delivered','kt_reviewing','pending_approval','rejected','debt','invoiced'])): ?>
+    <a href="<?= BASE_URL ?>/?page=ops.print_delivery_note&id=<?= (int)$s['id'] ?>"
+       target="_blank"
+       class="btn btn-sm btn-outline-secondary">🖨️ In biên bản giao hàng</a>
+    <?php endif; ?>
+
+    <a href="<?= BASE_URL ?>/?page=ops.costs&id=<?= (int)$s['id'] ?>"
+       class="btn btn-sm btn-outline-success">💰 Nhập chi phí</a>
+  </div>
+
+  <!-- Costs form inline (for OPS) -->
+  <form id="ocCostsFormInfo">
+    <input type="hidden" name="shipment_id" value="<?= (int)$s['id'] ?>">
+
+    <?php if (!empty($quotationItemsList)): ?>
+    <div class="mb-3">
+      <div class="fw-semibold mb-2" style="color:#dc2626;font-size:0.88rem">
+        Các ô tích Chọn lấy từ báo giá khách hàng:
+      </div>
+      <?php
+      $checkedNamesInfo = [];
+      foreach ($costList as $_ck2) {
+          if (($_ck2['source'] ?? '') === 'quotation') {
+              $checkedNamesInfo[] = trim($_ck2['cost_name']);
+          }
+      }
+      $checkedNamesInfo = array_unique($checkedNamesInfo);
+      foreach ($quotationItemsList as $qi2):
+        $chk2 = in_array(trim($qi2['description']), $checkedNamesInfo);
+      ?>
+      <div class="d-flex align-items-start gap-3 p-2 mb-2"
+           style="border:1px solid #cbd5e1;border-radius:6px;background:<?= $chk2 ? '#f0fdf4' : '#fff' ?>">
+        <input type="checkbox" name="quotation_items[]" value="<?= (int)$qi2['id'] ?>"
+               class="form-check-input flex-shrink-0" style="width:22px;height:22px;margin-top:2px"
+               <?= $chk2 ? 'checked' : '' ?>>
+        <div style="min-width:0">
+          <div class="fw-semibold" style="font-size:0.88rem"><?= htmlspecialchars($qi2['description']) ?></div>
+          <?php if (!empty($qi2['note'])): ?>
+          <div class="text-muted" style="font-size:0.75rem"><?= htmlspecialchars($qi2['note']) ?></div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <hr class="my-2">
+    <?php endif; ?>
+
+    <div class="mb-2">
+      <div class="fw-semibold mb-2" style="font-size:0.88rem">Chi Phí Thực tế OPS trả (nếu có):</div>
+      <div id="ocOpsCostRowsInfo">
+        <?php
+        $opsRowsInfo = array_values(array_filter($costList, fn($c) => ($c['source'] ?? 'ops') === 'ops'));
+        if (empty($opsRowsInfo)) $opsRowsInfo = [['cost_name'=>'','amount'=>'']];
+        foreach ($opsRowsInfo as $ri2 => $oc2):
+        ?>
+        <div class="d-flex gap-2 mb-2 align-items-center oc-ops-row-info">
+          <input type="text" name="ops_costs[<?= $ri2 ?>][name]" class="form-control form-control-sm"
+                 placeholder="Nội dung" style="border:2px solid #000"
+                 value="<?= htmlspecialchars($oc2['cost_name'] ?? '') ?>">
+          <input type="number" name="ops_costs[<?= $ri2 ?>][amount]" class="form-control form-control-sm"
+                 placeholder="Số Tiền" style="width:130px;border:2px solid #000" step="1000" min="0"
+                 value="<?= $oc2['amount'] ?? '' ?>">
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                  onclick="this.closest('.oc-ops-row-info').remove()">✕</button>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-2"
+              onclick="ocAddOpsRowInfo()">+ Thêm dòng</button>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-center mt-3">
+      <button type="button" onclick="ocSaveCostsInfo()"
+              class="btn btn-outline-danger px-4 fw-semibold">Lưu</button>
+      <button type="button"
+              onclick="(() => { const el=document.getElementById('shipmentOffcanvas'); if(el) bootstrap.Offcanvas.getInstance(el)?.hide(); else { const m=document.querySelector('.modal.show'); if(m) bootstrap.Modal.getInstance(m)?.hide(); } })()"
+              class="btn btn-outline-danger px-4 fw-semibold">Đóng</button>
+    </div>
+  </form>
+  <?php endif; ?>
+
   </div>
 
   <!-- ── Tab: Tờ khai ── -->
@@ -362,6 +460,7 @@ $role = $_SESSION['role'] ?? '';
 </div>
 
 <!-- ── Footer: nút hành động theo role ── -->
+<?php if ($role !== 'ops'): ?>
 <div class="border-top p-3 d-flex gap-2 flex-wrap" style="background:#f8fafc">
   <?php if (in_array($role, ['cs', 'admin'])): ?>
   <a href="<?= BASE_URL ?>/?page=cs.edit_shipment&id=<?= (int)$s['id'] ?>"
@@ -403,6 +502,7 @@ $role = $_SESSION['role'] ?? '';
      class="btn btn-sm btn-primary">📦 Xem chi tiết</a>
   <?php endif; ?>
 </div>
+<?php endif; ?>
 
 <script>
 function ocMarkDelivered(id) {
@@ -510,6 +610,54 @@ function ocSaveCosts() {
   })
   .catch(() => {
     if (btn) { btn.disabled = false; btn.innerHTML = '💾 Lưu'; }
+    alert('Lỗi kết nối!');
+  });
+}
+
+let ocOpsRowIdxInfo = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
+
+function ocAddOpsRowInfo() {
+  const container = document.getElementById('ocOpsCostRowsInfo');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'oc-ops-row-info d-flex gap-2 mb-2 align-items-center';
+  div.innerHTML = `
+    <input type="text" name="ops_costs[${ocOpsRowIdxInfo}][name]"
+           class="form-control form-control-sm" placeholder="Nội dung"
+           style="border:2px solid #000">
+    <input type="number" name="ops_costs[${ocOpsRowIdxInfo}][amount]"
+           class="form-control form-control-sm" placeholder="Số Tiền"
+           style="width:130px;border:2px solid #000" step="1000" min="0">
+    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+            onclick="this.closest('.oc-ops-row-info').remove()">✕</button>
+  `;
+  container.appendChild(div);
+  ocOpsRowIdxInfo++;
+}
+
+function ocSaveCostsInfo() {
+  const form = document.getElementById('ocCostsFormInfo');
+  if (!form) return;
+  const data = new FormData(form);
+  const btn  = document.querySelector('[onclick="ocSaveCostsInfo()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+  fetch('<?= BASE_URL ?>/?page=ops.save_costs_modal', {
+    method: 'POST',
+    body: data
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (btn) { btn.disabled = false; }
+    if (d.success) {
+      if (btn) { btn.innerHTML = '✅ Đã lưu!'; setTimeout(() => { btn.innerHTML = 'Lưu'; }, 2000); }
+    } else {
+      if (btn) btn.innerHTML = 'Lưu';
+      alert(d.message || 'Lỗi lưu chi phí!');
+    }
+  })
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Lưu'; }
     alert('Lỗi kết nối!');
   });
 }
