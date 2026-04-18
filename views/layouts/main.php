@@ -14,7 +14,7 @@ $menus = [
     ['label' => 'OPS - VẬN HÀNH', 'type' => 'header'],
     ['ops.dashboard',     '📊', 'Dashboard'],
     ['ops.shipment_list', '📥', 'Tải tờ khai'],
-    ['ops.create_trip',   '🚚', 'Tạo chuyến'],
+    ['ops.create_trip',   '🖨️', 'In Biên Bản GH'],
     ['ops.costs',         '💰', 'Chi phí'],
   ],
   'accounting' => [
@@ -47,7 +47,7 @@ $menus = [
     ['label' => 'OPS - VẬN HÀNH', 'type' => 'header'],
     ['ops.dashboard',             '📊', 'Dashboard'],
     ['ops.shipment_list',         '📥', 'Tải tờ khai'],
-    ['ops.create_trip',           '🚚', 'Tạo chuyến'],
+    ['ops.create_trip',           '🖨️', 'In Biên Bản GH'],
 
     ['label' => 'KẾ TOÁN', 'type' => 'header'],
     ['accounting.dashboard',      '📊', 'Dashboard'],

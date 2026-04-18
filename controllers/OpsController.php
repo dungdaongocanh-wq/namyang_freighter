@@ -188,7 +188,32 @@ class OpsController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $_POST['action'] ?? '';
 
-            if ($action === 'create_trip') {
+            if ($action === 'print_delivery') {
+                $carrier    = trim($_POST['carrier'] ?? '');
+                $customerId = (int)($_POST['customer_id'] ?? 0);
+                $shipIds    = $_POST['shipment_ids'] ?? [];
+
+                if (empty($shipIds)) {
+                    $msg = 'error:Chọn ít nhất 1 lô hàng!';
+                } else {
+                    $stmt = $db->prepare("INSERT INTO delivery_trips (driver_id, ops_id, trip_date, note, status) VALUES (NULL,?,CURDATE(),?,'pending')");
+                    $stmt->execute([$_SESSION['user_id'], $carrier]);
+                    $tripId = $db->lastInsertId();
+
+                    foreach (array_map('intval', $shipIds) as $sid) {
+                        $db->prepare("INSERT INTO delivery_trip_items (trip_id, shipment_id) VALUES (?,?)")
+                           ->execute([$tripId, $sid]);
+                        // Tạo delivery_note cho từng lô
+                        $noteCode = 'DN-' . date('Ymd') . '-T' . $tripId . '-' . str_pad($sid, 4, '0', STR_PAD_LEFT);
+                        try {
+                            $db->prepare("INSERT INTO delivery_notes (shipment_id, note_code, created_by, created_at) VALUES (?,?,?,NOW())")
+                               ->execute([$sid, $noteCode, $_SESSION['user_id']]);
+                        } catch (Exception $e) {}
+                    }
+                    header('Location: ' . BASE_URL . '/?page=ops.print_multi_delivery_note&trip_id=' . $tripId . '&autoprint=1');
+                    exit;
+                }
+            } elseif ($action === 'create_trip') {
                 $driverId = (int)$_POST['driver_id'];
                 $tripDate = $_POST['trip_date'];
                 $shipIds  = $_POST['shipment_ids'] ?? [];
@@ -212,28 +237,22 @@ class OpsController {
             }
         }
 
-        $waitingShipments = $db->query("
-            SELECT s.*, c.company_name
-            FROM shipments s
-            LEFT JOIN customers c ON s.customer_id = c.id
-            WHERE s.status = 'waiting_pickup'
-            ORDER BY s.active_date ASC
-        ")->fetchAll();
+        $customers = $db->query("SELECT id, company_name FROM customers WHERE is_active=1 ORDER BY company_name ASC")->fetchAll();
 
-        $drivers = $db->query("SELECT id, full_name FROM users WHERE role='driver' AND is_active=1")->fetchAll();
-
-        $recentTrips = $db->query("
-            SELECT dt.*, u.full_name as driver_name,
-                   COUNT(dti.id) as item_count
+        $recentNotes = $db->query("
+            SELECT dt.id, dt.note, dt.trip_date,
+                   COUNT(dti.id) as item_count,
+                   c.company_name
             FROM delivery_trips dt
-            LEFT JOIN users u ON dt.driver_id = u.id
             LEFT JOIN delivery_trip_items dti ON dt.id = dti.trip_id
+            LEFT JOIN shipments s ON dti.shipment_id = s.id
+            LEFT JOIN customers c ON s.customer_id = c.id
             GROUP BY dt.id
             ORDER BY dt.id DESC
             LIMIT 10
         ")->fetchAll();
 
-        $viewTitle = 'Tạo chuyến giao hàng';
+        $viewTitle = 'In Biên Bản Giao Hàng';
         $viewFile  = __DIR__ . '/../views/ops/trip.php';
         include __DIR__ . '/../views/layouts/main.php';
     }
@@ -241,6 +260,75 @@ class OpsController {
     // Alias cho index.php gọi ops.create_trip
     public function createTrip() {
         $this->trip();
+    }
+
+    // AJAX: lấy danh sách lô hàng waiting_pickup theo customer_id
+    public function shipmentsByCustomer() {
+        header('Content-Type: application/json');
+        $customerId = (int)($_GET['customer_id'] ?? 0);
+        if (!$customerId) { echo json_encode([]); exit; }
+        $db = getDB();
+        $stmt = $db->prepare("
+            SELECT id, hawb, customer_code, packages, weight, active_date
+            FROM shipments
+            WHERE customer_id = ? AND status = 'waiting_pickup'
+            ORDER BY active_date ASC
+        ");
+        $stmt->execute([$customerId]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // In biên bản giao hàng nhiều lô theo trip_id
+    public function printMultiDeliveryNote() {
+        $db     = getDB();
+        $tripId = (int)($_GET['trip_id'] ?? 0);
+
+        if (!$tripId) {
+            header('Location: ' . BASE_URL . '/?page=ops.create_trip');
+            exit;
+        }
+
+        // Lấy thông tin trip
+        $tripStmt = $db->prepare("SELECT * FROM delivery_trips WHERE id = ?");
+        $tripStmt->execute([$tripId]);
+        $trip = $tripStmt->fetch();
+
+        if (!$trip) {
+            header('Location: ' . BASE_URL . '/?page=ops.create_trip&err=not_found');
+            exit;
+        }
+
+        // Lấy danh sách shipment trong trip (join delivery_trip_items)
+        $shipStmt = $db->prepare("
+            SELECT s.id, s.hawb, s.mawb, s.customer_code, s.packages, s.weight, s.active_date,
+                   c.company_name, c.address as customer_address, c.phone as customer_phone
+            FROM delivery_trip_items dti
+            JOIN shipments s ON dti.shipment_id = s.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE dti.trip_id = ?
+            ORDER BY dti.id ASC
+        ");
+        $shipStmt->execute([$tripId]);
+        $shipments = $shipStmt->fetchAll();
+
+        if (empty($shipments)) {
+            header('Location: ' . BASE_URL . '/?page=ops.create_trip&err=not_found');
+            exit;
+        }
+
+        // Lấy thông tin khách hàng từ shipment đầu tiên
+        $customer = [
+            'company_name' => $shipments[0]['company_name']    ?? '',
+            'address'      => $shipments[0]['customer_address'] ?? '',
+            'phone'        => $shipments[0]['customer_phone']   ?? '',
+        ];
+
+        $carrier   = $trip['note'] ?? '';
+        $viewTitle = 'Biên Bản Giao Nhận Hàng Hóa';
+
+        include __DIR__ . '/../templates/delivery_note_multi.php';
+        exit;
     }
 
     public function costs() {
