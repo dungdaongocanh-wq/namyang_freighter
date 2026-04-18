@@ -355,6 +355,27 @@ case 'admin.settings':
         $controller->markAllRead();
         break;
 
+    // ===== Shared: Delivery Board =====
+    case 'shared.delivery_board':
+        requireRole(['cs', 'ops', 'accounting', 'admin']);
+        (new DeliveryBoardController())->index();
+        break;
+
+    case 'shared.delivery_board_cost_form':
+        requireRole(['cs', 'ops', 'accounting', 'admin']);
+        (new DeliveryBoardController())->costForm();
+        break;
+
+    case 'shared.delivery_board_save_costs':
+        requireRole(['cs', 'ops', 'accounting', 'admin']);
+        (new DeliveryBoardController())->saveCosts();
+        break;
+
+    case 'shared.delivery_board_confirm':
+        requireRole(['ops', 'accounting', 'admin']);
+        (new DeliveryBoardController())->confirmDelivered();
+        break;
+
     default:
         // Redirect về dashboard theo role
         if (isset($_SESSION['role'])) {
