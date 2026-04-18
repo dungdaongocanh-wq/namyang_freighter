@@ -210,6 +210,27 @@ class ShipmentController {
                     $db->prepare("UPDATE shipment_customs SET file_path=?, uploaded_by=?, uploaded_at=NOW() WHERE id=?")
                        ->execute(['uploads/customs/' . $filename, $_SESSION['user_id'], $cdId]);
 
+                    // Bước 1: Luôn chuyển pending_customs → cleared khi upload tờ khai
+                    StateTransition::transition($shipmentId, 'customs_file_upload', $_SESSION['user_id'], 'Upload tờ khai');
+
+                    // Bước 2: Nếu tất cả tờ khai đã có file → chuyển cleared → waiting_pickup
+                    try {
+                        $check = $db->prepare("
+                            SELECT COUNT(*) as total,
+                                   SUM(CASE WHEN file_path IS NOT NULL THEN 1 ELSE 0 END) as uploaded
+                            FROM shipment_customs
+                            WHERE shipment_id = ?
+                        ");
+                        $check->execute([$shipmentId]);
+                        $counts = $check->fetch();
+
+                        if ($counts['total'] > 0 && $counts['total'] == $counts['uploaded']) {
+                            StateTransition::transition($shipmentId, 'ops_bulk_download', $_SESSION['user_id'], 'Đã upload đủ tờ khai');
+                        }
+                    } catch (Exception $e) {
+                        error_log('[customsUpload] StateTransition error: ' . $e->getMessage());
+                    }
+
                     header('Location: ' . BASE_URL . '/?page=cs.customs_upload&msg=saved');
                     exit;
                 }
