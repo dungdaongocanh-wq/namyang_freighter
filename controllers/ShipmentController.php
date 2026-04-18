@@ -480,28 +480,42 @@ public function deleteCustomsRecord() {
         exit;
     }
 
-    // ===== DELETE SHIPMENT =====
-    public function deleteShipment() {
-        $db = getDB();
-        $id = (int)($_POST['id'] ?? 0);
+// ===== DELETE SHIPMENT =====
+public function deleteShipment() {
+    $db = getDB();
+    $id = (int)($_POST['id'] ?? 0);
 
-        if (!$id) {
-            header('Location: ' . BASE_URL . '/?page=cs.list&err=invalid');
-            exit;
-        }
-
-        try { $db->prepare("DELETE FROM shipment_logs      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-        try { $db->prepare("DELETE FROM shipment_costs     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-        try { $db->prepare("DELETE FROM shipment_documents WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-        try { $db->prepare("DELETE FROM shipment_customs   WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-        try { $db->prepare("DELETE FROM notifications      WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-        try { $db->prepare("DELETE FROM trip_shipments     WHERE shipment_id = ?")->execute([$id]); } catch (Exception $e) {}
-
-        $db->prepare("DELETE FROM shipments WHERE id = ?")->execute([$id]);
-
-        header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
+    if (!$id) {
+        header('Location: ' . BASE_URL . '/?page=cs.list&err=invalid');
         exit;
     }
+
+    // Xóa tất cả bảng liên quan trước
+    $related = [
+        'shipment_logs',
+        'shipment_costs',
+        'shipment_documents',
+        'shipment_customs',
+        'shipment_photos',
+        'notifications',
+        'delivery_trip_items',
+        'delivery_signatures',
+        'delivery_notes',
+        'approval_history',
+        'debt_items',
+        'trip_shipments',
+    ];
+    foreach ($related as $table) {
+        try {
+            $db->prepare("DELETE FROM `$table` WHERE shipment_id = ?")->execute([$id]);
+        } catch (Exception $e) {}
+    }
+
+    $db->prepare("DELETE FROM shipments WHERE id = ?")->execute([$id]);
+
+    header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
+    exit;
+}
 
     // ===== HUỶ LÔ HÀNG =====
     public function cancelShipment() {
