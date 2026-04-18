@@ -349,11 +349,27 @@ function ocMarkDelivered(id) {
     body: 'shipment_id=' + id
   }).then(r => r.json()).then(d => {
     if (d.success) location.reload();
+    else alert(d.message || 'Lỗi đánh dấu đã giao!');
   });
 }
 
 function ocUploadPhotos(input, shipmentId) {
   if (!input.files.length) return;
+
+  const allowedTypes = ['image/jpeg','image/png','image/gif','image/webp'];
+  const maxSize = 10 * 1024 * 1024; // 10 MB
+  for (const file of input.files) {
+    if (!allowedTypes.includes(file.type)) {
+      alert('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WEBP)!');
+      input.value = '';
+      return;
+    }
+    if (file.size > maxSize) {
+      alert('Mỗi ảnh không được vượt quá 10 MB!');
+      input.value = '';
+      return;
+    }
+  }
 
   const preview = document.getElementById('ocPhotoPreview');
   Array.from(input.files).forEach(file => {
@@ -379,6 +395,7 @@ function ocUploadPhotos(input, shipmentId) {
     .then(data => {
       document.getElementById('ocUploadProgress').classList.add('d-none');
       if (data.success) location.reload();
+      else alert(data.message || 'Lỗi upload ảnh!');
     }).catch(() => {
       document.getElementById('ocUploadProgress').classList.add('d-none');
       alert('Lỗi upload ảnh!');
