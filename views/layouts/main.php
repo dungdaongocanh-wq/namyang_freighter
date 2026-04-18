@@ -10,6 +10,9 @@ $menus = [
     ['cs.list',              '📋', 'Danh sách lô'],
     ['shared.delivery_board','📬', 'Theo dõi giao hàng'],
     ['cs.customs_upload',    '📂', 'Upload tờ khai'],
+    ['label' => 'KHÁCH HÀNG', 'type' => 'header'],
+    ['customer.pending_approval', '⚠️',  'Chờ duyệt'],
+    ['customer.shipment_list',    '📦', 'Danh sách lô KH'],
   ],
   'ops' => [
     ['label' => 'OPS - VẬN HÀNH', 'type' => 'header'],

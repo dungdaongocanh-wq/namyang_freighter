@@ -3,8 +3,8 @@ class CustomerController {
 
     // ===== DASHBOARD =====
     public function dashboard() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
 
         $stats = [
             'total'            => 0,
@@ -14,49 +14,94 @@ class CustomerController {
             'debt'             => 0,
         ];
 
-        // Đếm đúng từng status
-        $stStmt = $db->prepare("
-            SELECT status, COUNT(*) as cnt
-            FROM shipments
-            WHERE customer_id = ?
-            GROUP BY status
-        ");
-        $stStmt->execute([$customerId]);
-        $statusCounts = $stStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        if (in_array($role, ['cs', 'admin'])) {
+            // CS/Admin: thống kê tất cả lô
+            $stStmt = $db->query("
+                SELECT status, COUNT(*) as cnt
+                FROM shipments
+                GROUP BY status
+            ");
+            $statusCounts = $stStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-        $stats['total']            = array_sum($statusCounts);
-        $stats['pending_customs']  = $statusCounts['pending_customs'] ?? 0;
-        $stats['in_transit']       = $statusCounts['in_transit'] ?? 0;
-        $stats['pending_approval'] = $statusCounts['pending_approval'] ?? 0;
-        $stats['debt']             = ($statusCounts['debt'] ?? 0) + ($statusCounts['invoiced'] ?? 0);
+            $stats['total']            = array_sum($statusCounts);
+            $stats['pending_customs']  = $statusCounts['pending_customs'] ?? 0;
+            $stats['in_transit']       = $statusCounts['in_transit'] ?? 0;
+            $stats['pending_approval'] = $statusCounts['pending_approval'] ?? 0;
+            $stats['debt']             = ($statusCounts['debt'] ?? 0) + ($statusCounts['invoiced'] ?? 0);
 
-        // Lô cần duyệt (urgent)
-        $urgentStmt = $db->prepare("
-            SELECT s.*,
-                   COALESCE(SUM(sc.amount),0) as total_cost
-            FROM shipments s
-            LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            WHERE s.customer_id = ? AND s.status = 'pending_approval'
-            GROUP BY s.id
-            ORDER BY s.updated_at ASC
-            LIMIT 5
-        ");
-        $urgentStmt->execute([$customerId]);
-        $urgentList = $urgentStmt->fetchAll();
+            $urgentStmt = $db->query("
+                SELECT s.*,
+                       c.company_name, c.customer_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.status = 'pending_approval'
+                GROUP BY s.id
+                ORDER BY s.updated_at ASC
+                LIMIT 5
+            ");
+            $urgentList = $urgentStmt->fetchAll();
 
-        // Lô gần đây
-        $recentStmt = $db->prepare("
-            SELECT s.*,
-                   COALESCE(SUM(sc.amount),0) as total_cost
-            FROM shipments s
-            LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            WHERE s.customer_id = ?
-            GROUP BY s.id
-            ORDER BY s.updated_at DESC
-            LIMIT 8
-        ");
-        $recentStmt->execute([$customerId]);
-        $recentShipments = $recentStmt->fetchAll();
+            $recentStmt = $db->query("
+                SELECT s.*,
+                       c.company_name, c.customer_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                GROUP BY s.id
+                ORDER BY s.updated_at DESC
+                LIMIT 8
+            ");
+            $recentShipments = $recentStmt->fetchAll();
+        } else {
+            $customerId = $_SESSION['customer_id'];
+
+            // Đếm đúng từng status
+            $stStmt = $db->prepare("
+                SELECT status, COUNT(*) as cnt
+                FROM shipments
+                WHERE customer_id = ?
+                GROUP BY status
+            ");
+            $stStmt->execute([$customerId]);
+            $statusCounts = $stStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            $stats['total']            = array_sum($statusCounts);
+            $stats['pending_customs']  = $statusCounts['pending_customs'] ?? 0;
+            $stats['in_transit']       = $statusCounts['in_transit'] ?? 0;
+            $stats['pending_approval'] = $statusCounts['pending_approval'] ?? 0;
+            $stats['debt']             = ($statusCounts['debt'] ?? 0) + ($statusCounts['invoiced'] ?? 0);
+
+            // Lô cần duyệt (urgent)
+            $urgentStmt = $db->prepare("
+                SELECT s.*,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.customer_id = ? AND s.status = 'pending_approval'
+                GROUP BY s.id
+                ORDER BY s.updated_at ASC
+                LIMIT 5
+            ");
+            $urgentStmt->execute([$customerId]);
+            $urgentList = $urgentStmt->fetchAll();
+
+            // Lô gần đây
+            $recentStmt = $db->prepare("
+                SELECT s.*,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.customer_id = ?
+                GROUP BY s.id
+                ORDER BY s.updated_at DESC
+                LIMIT 8
+            ");
+            $recentStmt->execute([$customerId]);
+            $recentShipments = $recentStmt->fetchAll();
+        }
 
         $viewTitle = 'Dashboard';
         $viewFile  = __DIR__ . '/../views/customer/dashboard.php';
@@ -65,11 +110,16 @@ class CustomerController {
 
     // ===== DANH SÁCH LÔ =====
     public function shipmentList() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
 
-        $where  = ['s.customer_id = ?'];
-        $params = [$customerId];
+        $where  = [];
+        $params = [];
+
+        if (!in_array($role, ['cs', 'admin'])) {
+            $where[]  = 's.customer_id = ?';
+            $params[] = $_SESSION['customer_id'];
+        }
 
         if (!empty($_GET['search'])) {
             $where[]  = "(s.hawb LIKE ? OR s.mawb LIKE ?)";
@@ -85,21 +135,23 @@ class CustomerController {
             $params[] = $_GET['month'];
         }
 
-        $whereStr = implode(' AND ', $where);
+        $whereStr = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
         $perPage  = 20;
         $page     = max(1, (int)($_GET['p'] ?? 1));
         $offset   = ($page - 1) * $perPage;
 
-        $countStmt = $db->prepare("SELECT COUNT(*) FROM shipments s WHERE $whereStr");
+        $countStmt = $db->prepare("SELECT COUNT(*) FROM shipments s $whereStr");
         $countStmt->execute($params);
         $totalRows = $countStmt->fetchColumn();
 
         $stmt = $db->prepare("
             SELECT s.*,
+                   c.company_name, c.customer_code as cust_code,
                    COALESCE(SUM(sc.amount),0) as total_cost
             FROM shipments s
+            LEFT JOIN customers c ON s.customer_id = c.id
             LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            WHERE $whereStr
+            $whereStr
             GROUP BY s.id
             ORDER BY s.active_date DESC, s.id DESC
             LIMIT $perPage OFFSET $offset
@@ -109,13 +161,23 @@ class CustomerController {
         $totalPages = ceil($totalRows / $perPage);
 
         // Tháng filter
-        $monthsStmt = $db->prepare("
-            SELECT DISTINCT DATE_FORMAT(active_date,'%Y-%m') as ym
-            FROM shipments WHERE customer_id=?
-            ORDER BY ym DESC LIMIT 24
-        ");
-        $monthsStmt->execute([$customerId]);
-        $months = $monthsStmt->fetchAll(PDO::FETCH_COLUMN);
+        if (in_array($role, ['cs', 'admin'])) {
+            $monthsStmt = $db->query("
+                SELECT DISTINCT DATE_FORMAT(active_date,'%Y-%m') as ym
+                FROM shipments
+                ORDER BY ym DESC LIMIT 24
+            ");
+            $months = $monthsStmt->fetchAll(PDO::FETCH_COLUMN);
+        } else {
+            $customerId = $_SESSION['customer_id'];
+            $monthsStmt = $db->prepare("
+                SELECT DISTINCT DATE_FORMAT(active_date,'%Y-%m') as ym
+                FROM shipments WHERE customer_id=?
+                ORDER BY ym DESC LIMIT 24
+            ");
+            $monthsStmt->execute([$customerId]);
+            $months = $monthsStmt->fetchAll(PDO::FETCH_COLUMN);
+        }
 
         $viewTitle = 'Lô hàng của tôi';
         $viewFile  = __DIR__ . '/../views/customer/shipment_list.php';
@@ -124,19 +186,34 @@ class CustomerController {
 
     // ===== CHI TIẾT LÔ =====
     public function shipmentDetail() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
-        $id         = (int)($_GET['id'] ?? 0);
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
+        $id   = (int)($_GET['id'] ?? 0);
 
-        $stmt = $db->prepare("
-            SELECT s.*,
-                   COALESCE(SUM(sc.amount),0) as total_cost
-            FROM shipments s
-            LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            WHERE s.id = ? AND s.customer_id = ?
-            GROUP BY s.id
-        ");
-        $stmt->execute([$id, $customerId]);
+        if (in_array($role, ['cs', 'admin'])) {
+            $stmt = $db->prepare("
+                SELECT s.*,
+                       c.company_name, c.customer_code as cust_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.id = ?
+                GROUP BY s.id
+            ");
+            $stmt->execute([$id]);
+        } else {
+            $customerId = $_SESSION['customer_id'];
+            $stmt = $db->prepare("
+                SELECT s.*,
+                       COALESCE(SUM(sc.amount),0) as total_cost
+                FROM shipments s
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.id = ? AND s.customer_id = ?
+                GROUP BY s.id
+            ");
+            $stmt->execute([$id, $customerId]);
+        }
         $shipment = $stmt->fetch();
 
         if (!$shipment) {
@@ -177,8 +254,8 @@ class CustomerController {
 
     // ===== DUYỆT CHI PHÍ =====
     public function approve() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
 
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             // Hiển thị trang duyệt chi tiết cho 1 lô
@@ -188,17 +265,32 @@ class CustomerController {
                 exit;
             }
 
-            $stmt = $db->prepare("
-                SELECT s.*,
-                       c.company_name, c.customer_code,
-                       COALESCE(SUM(sc.amount),0) as total_cost
-                FROM shipments s
-                LEFT JOIN customers c ON s.customer_id = c.id
-                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-                WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
-                GROUP BY s.id
-            ");
-            $stmt->execute([$id, $customerId]);
+            if (in_array($role, ['cs', 'admin'])) {
+                $stmt = $db->prepare("
+                    SELECT s.*,
+                           c.company_name, c.customer_code,
+                           COALESCE(SUM(sc.amount),0) as total_cost
+                    FROM shipments s
+                    LEFT JOIN customers c ON s.customer_id = c.id
+                    LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                    WHERE s.id = ? AND s.status = 'pending_approval'
+                    GROUP BY s.id
+                ");
+                $stmt->execute([$id]);
+            } else {
+                $customerId = $_SESSION['customer_id'];
+                $stmt = $db->prepare("
+                    SELECT s.*,
+                           c.company_name, c.customer_code,
+                           COALESCE(SUM(sc.amount),0) as total_cost
+                    FROM shipments s
+                    LEFT JOIN customers c ON s.customer_id = c.id
+                    LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                    WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
+                    GROUP BY s.id
+                ");
+                $stmt->execute([$id, $customerId]);
+            }
             $shipment = $stmt->fetch();
 
             if (!$shipment) {
@@ -221,19 +313,29 @@ class CustomerController {
         // POST → xử lý duyệt
         $id = (int)($_POST['shipment_id'] ?? 0);
 
-        // Xác minh lô thuộc KH và đang chờ duyệt
-        $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND customer_id=? AND status='pending_approval'");
-        $stmt->execute([$id, $customerId]);
-        if (!$stmt->fetch()) {
+        if (in_array($role, ['cs', 'admin'])) {
+            // CS/Admin duyệt thay: không cần check customer_id
+            $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND status='pending_approval'");
+            $stmt->execute([$id]);
+        } else {
+            $customerId = $_SESSION['customer_id'];
+            $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND customer_id=? AND status='pending_approval'");
+            $stmt->execute([$id, $customerId]);
+        }
+        $row = $stmt->fetch();
+        if (!$row) {
             header('Location: ' . BASE_URL . '/?page=customer.pending_approval&err=invalid');
             exit;
         }
 
+        $approverCustomerId = $row['customer_id'];
+        $reason = in_array($role, ['cs', 'admin']) ? 'CS/Admin duyệt thay khách hàng' : 'Khách hàng đồng ý chi phí';
+
         // Ghi approval_history
         $db->prepare("
             INSERT INTO approval_history (shipment_id, action, customer_id, user_id, reason)
-            VALUES (?, 'approved', ?, ?, 'Khách hàng đồng ý chi phí')
-        ")->execute([$id, $customerId, $_SESSION['user_id']]);
+            VALUES (?, 'approved', ?, ?, ?)
+        ")->execute([$id, $approverCustomerId, $_SESSION['user_id'], $reason]);
 
         StateTransition::transition($id, 'customer_approve', $_SESSION['user_id']);
 
@@ -243,8 +345,8 @@ class CustomerController {
 
     // ===== TỪ CHỐI CHI PHÍ =====
     public function reject() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
 
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             // Hiển thị trang từ chối cho 1 lô
@@ -254,17 +356,32 @@ class CustomerController {
                 exit;
             }
 
-            $stmt = $db->prepare("
-                SELECT s.*,
-                       c.company_name, c.customer_code,
-                       COALESCE(SUM(sc.amount),0) as total_cost
-                FROM shipments s
-                LEFT JOIN customers c ON s.customer_id = c.id
-                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-                WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
-                GROUP BY s.id
-            ");
-            $stmt->execute([$id, $customerId]);
+            if (in_array($role, ['cs', 'admin'])) {
+                $stmt = $db->prepare("
+                    SELECT s.*,
+                           c.company_name, c.customer_code,
+                           COALESCE(SUM(sc.amount),0) as total_cost
+                    FROM shipments s
+                    LEFT JOIN customers c ON s.customer_id = c.id
+                    LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                    WHERE s.id = ? AND s.status = 'pending_approval'
+                    GROUP BY s.id
+                ");
+                $stmt->execute([$id]);
+            } else {
+                $customerId = $_SESSION['customer_id'];
+                $stmt = $db->prepare("
+                    SELECT s.*,
+                           c.company_name, c.customer_code,
+                           COALESCE(SUM(sc.amount),0) as total_cost
+                    FROM shipments s
+                    LEFT JOIN customers c ON s.customer_id = c.id
+                    LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                    WHERE s.id = ? AND s.customer_id = ? AND s.status = 'pending_approval'
+                    GROUP BY s.id
+                ");
+                $stmt->execute([$id, $customerId]);
+            }
             $shipment = $stmt->fetch();
 
             if (!$shipment) {
@@ -293,18 +410,27 @@ class CustomerController {
             exit;
         }
 
-        $stmt = $db->prepare("SELECT id FROM shipments WHERE id=? AND customer_id=? AND status='pending_approval'");
-        $stmt->execute([$id, $customerId]);
-        if (!$stmt->fetch()) {
+        if (in_array($role, ['cs', 'admin'])) {
+            $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND status='pending_approval'");
+            $stmt->execute([$id]);
+        } else {
+            $customerId = $_SESSION['customer_id'];
+            $stmt = $db->prepare("SELECT id, customer_id FROM shipments WHERE id=? AND customer_id=? AND status='pending_approval'");
+            $stmt->execute([$id, $customerId]);
+        }
+        $row = $stmt->fetch();
+        if (!$row) {
             header('Location: ' . BASE_URL . '/?page=customer.pending_approval&err=invalid');
             exit;
         }
+
+        $approverCustomerId = $row['customer_id'];
 
         // Ghi approval_history
         $db->prepare("
             INSERT INTO approval_history (shipment_id, action, customer_id, user_id, reason)
             VALUES (?, 'rejected', ?, ?, ?)
-        ")->execute([$id, $customerId, $_SESSION['user_id'], $reason]);
+        ")->execute([$id, $approverCustomerId, $_SESSION['user_id'], $reason]);
 
         StateTransition::transition($id, 'customer_reject', $_SESSION['user_id'], $reason);
 
@@ -314,21 +440,39 @@ class CustomerController {
 
     // ===== DANH SÁCH CHỜ DUYỆT =====
     public function pendingApproval() {
-        $db         = getDB();
-        $customerId = $_SESSION['customer_id'];
+        $db   = getDB();
+        $role = $_SESSION['role'] ?? '';
 
-        $stmt = $db->prepare("
-            SELECT s.*,
-                   COALESCE(SUM(sc.amount),0) as total_cost,
-                   COUNT(sc.id) as cost_lines
-            FROM shipments s
-            LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            WHERE s.customer_id = ? AND s.status = 'pending_approval'
-            GROUP BY s.id
-            ORDER BY s.updated_at ASC
-        ");
-        $stmt->execute([$customerId]);
-        $pendingList = $stmt->fetchAll();
+        if (in_array($role, ['cs', 'admin'])) {
+            // CS/Admin thấy tất cả lô pending_approval
+            $stmt = $db->query("
+                SELECT s.*,
+                       c.company_name, c.customer_code,
+                       COALESCE(SUM(sc.amount),0) as total_cost,
+                       COUNT(sc.id) as cost_lines
+                FROM shipments s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.status = 'pending_approval'
+                GROUP BY s.id
+                ORDER BY s.updated_at ASC
+            ");
+            $pendingList = $stmt->fetchAll();
+        } else {
+            $customerId = $_SESSION['customer_id'];
+            $stmt = $db->prepare("
+                SELECT s.*,
+                       COALESCE(SUM(sc.amount),0) as total_cost,
+                       COUNT(sc.id) as cost_lines
+                FROM shipments s
+                LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+                WHERE s.customer_id = ? AND s.status = 'pending_approval'
+                GROUP BY s.id
+                ORDER BY s.updated_at ASC
+            ");
+            $stmt->execute([$customerId]);
+            $pendingList = $stmt->fetchAll();
+        }
 
         $viewTitle = 'Chờ duyệt chi phí';
         $viewFile  = __DIR__ . '/../views/customer/pending_approval.php';

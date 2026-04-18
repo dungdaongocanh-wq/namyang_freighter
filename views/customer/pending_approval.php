@@ -53,6 +53,9 @@ $err = $_GET['err'] ?? '';
            class="fw-bold text-primary text-decoration-none fs-6">
           <?= htmlspecialchars($s['hawb']) ?>
         </a>
+        <?php if (!empty($s['company_name'])): ?>
+        <div class="small text-muted"><?= htmlspecialchars($s['company_name']) ?></div>
+        <?php endif; ?>
         <div class="small text-muted mt-1">
           Active date: <?= date('d/m/Y', strtotime($s['active_date'])) ?> ·
           <?= $s['packages'] ?> kiện · <?= number_format($s['weight'],1) ?> kg
