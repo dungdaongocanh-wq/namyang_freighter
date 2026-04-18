@@ -252,7 +252,17 @@ function openShipmentDetail(id) {
   _shipmentOffcanvas.show();
   fetch('<?= BASE_URL ?>/?page=shipment.modal&id=' + id)
     .then(r => r.text())
-    .then(html => { body.innerHTML = html; })
+    .then(html => {
+      body.innerHTML = html;
+      // Re-execute <script> tags (innerHTML does NOT run scripts)
+      body.querySelectorAll('script').forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(a => newScript.setAttribute(a.name, a.value));
+        newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+        oldScript.remove();
+      });
+    })
     .catch(() => { body.innerHTML = '<div class="p-4 text-danger">❌ Lỗi tải dữ liệu.</div>'; });
 }
 

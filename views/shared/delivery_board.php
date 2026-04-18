@@ -215,7 +215,18 @@ function dbOpenCostModal(id, hawb) {
 
   fetch('<?= BASE_URL ?>/?page=shared.delivery_board_cost_form&id=' + id)
     .then(r => r.text())
-    .then(html => { document.getElementById('dbCostModalBody').innerHTML = html; })
+    .then(html => {
+      const modalBody = document.getElementById('dbCostModalBody');
+      modalBody.innerHTML = html;
+      // Re-execute <script> tags (innerHTML does NOT run scripts)
+      modalBody.querySelectorAll('script').forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(a => newScript.setAttribute(a.name, a.value));
+        newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+        oldScript.remove();
+      });
+    })
     .catch(() => {
       document.getElementById('dbCostModalBody').innerHTML =
         '<div class="p-3 text-danger">❌ Lỗi tải dữ liệu.</div>';
