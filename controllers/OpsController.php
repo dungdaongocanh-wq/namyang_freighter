@@ -377,6 +377,30 @@ class OpsController {
             LIMIT 30
         ")->fetchAll();
 
+        // Thống kê chi phí OPS đã bỏ ra (source='ops', created_by = current user)
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM shipment_costs WHERE source='ops' AND created_by=? AND DATE(created_at)=CURDATE()");
+        $stmt->execute([$_SESSION['user_id']]);
+        $opsCostToday = (float)$stmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM shipment_costs WHERE source='ops' AND created_by=? AND YEARWEEK(created_at,1)=YEARWEEK(CURDATE(),1)");
+        $stmt->execute([$_SESSION['user_id']]);
+        $opsCostWeek = (float)$stmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM shipment_costs WHERE source='ops' AND created_by=? AND DATE_FORMAT(created_at,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')");
+        $stmt->execute([$_SESSION['user_id']]);
+        $opsCostMonth = (float)$stmt->fetchColumn();
+
+        $stmt = $db->prepare("
+            SELECT cost_name, SUM(amount) as total
+            FROM shipment_costs
+            WHERE source='ops' AND created_by=? AND DATE_FORMAT(created_at,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')
+            GROUP BY cost_name
+            ORDER BY total DESC
+            LIMIT 5
+        ");
+        $stmt->execute([$_SESSION['user_id']]);
+        $opsCostBreakdown = $stmt->fetchAll();
+
         $viewTitle = 'Chi phí lô hàng';
         $viewFile  = __DIR__ . '/../views/ops/costs.php';
         include __DIR__ . '/../views/layouts/main.php';
