@@ -111,58 +111,68 @@ class AccountingController {
 
     // ===== LƯU CHI PHÍ (AJAX) =====
     public function saveCosts() {
-        header('Content-Type: application/json');
-        $db         = getDB();
-        $shipmentId = (int)($_POST['shipment_id'] ?? 0);
+        if (ob_get_level()) ob_clean();
+        ob_start();
+        header('Content-Type: application/json; charset=utf-8');
 
-        if (!$shipmentId) {
-            echo json_encode(['success' => false, 'message' => 'Thiếu shipment_id']);
-            exit;
-        }
-
-        // ── 1. Lưu chi phí OPS (nếu có thay đổi số tiền) ──
-        $opsCosts = $_POST['ops_costs'] ?? [];
-        foreach ($opsCosts as $opsId => $opsData) {
-            $opsId = (int)$opsId;
-            $amt   = (float)($opsData['amount'] ?? 0);
-            if ($opsId > 0) {
-                $db->prepare("UPDATE shipment_costs SET amount=? WHERE id=? AND shipment_id=? AND source='ops'")
-                   ->execute([$amt, $opsId, $shipmentId]);
-            }
-        }
-
-        // ── 2. Xóa chi phí KT/quotation cũ, giữ lại OPS ──
-        $db->prepare("DELETE FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation','auto','manual')")
-           ->execute([$shipmentId]);
-
-        // ── 3. Insert chi phí KT mới (từ form) ──
-        $ktCosts = $_POST['kt_costs'] ?? [];
-        foreach ($ktCosts as $c) {
-            $name   = trim($c['name'] ?? '');
-            $amt    = (float)($c['amount'] ?? 0);
-            $source = in_array($c['source'] ?? '', ['kt','quotation','manual','auto']) ? $c['source'] : 'kt';
-            if ($name === '' && $amt == 0) continue;
-            $db->prepare("INSERT INTO shipment_costs (shipment_id, cost_name, amount, source, created_by) VALUES (?,?,?,?,?)")
-               ->execute([$shipmentId, $name, $amt, $source, $_SESSION['user_id']]);
-        }
-
-        // Ghi log
         try {
-            $db->prepare("INSERT INTO shipment_logs (shipment_id, triggered_by, note, user_id) VALUES (?,'cost_updated','KT cập nhật chi phí',?)")
-               ->execute([$shipmentId, $_SESSION['user_id']]);
-        } catch (Exception $e) {}
+            $db         = getDB();
+            $shipmentId = (int)($_POST['shipment_id'] ?? 0);
 
-        // ── 4. Trả về danh sách chi phí KT mới để cập nhật "Báo giá tham chiếu" ──
-        $savedCosts = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation') ORDER BY id");
-        $savedCosts->execute([$shipmentId]);
-        $ktSaved = $savedCosts->fetchAll();
-        $ktTotal = array_sum(array_column($ktSaved, 'amount'));
+            if (!$shipmentId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'message' => 'Thiếu shipment_id']);
+                exit;
+            }
 
-        echo json_encode([
-            'success'  => true,
-            'kt_costs' => $ktSaved,
-            'kt_total' => $ktTotal,
-        ]);
+            // ── 1. Lưu chi phí OPS (nếu có thay đổi số tiền) ──
+            $opsCosts = $_POST['ops_costs'] ?? [];
+            foreach ($opsCosts as $opsId => $opsData) {
+                $opsId = (int)$opsId;
+                $amt   = (float)($opsData['amount'] ?? 0);
+                if ($opsId > 0) {
+                    $db->prepare("UPDATE shipment_costs SET amount=? WHERE id=? AND shipment_id=? AND source='ops'")
+                       ->execute([$amt, $opsId, $shipmentId]);
+                }
+            }
+
+            // ── 2. Xóa chi phí KT/quotation cũ, giữ lại OPS ──
+            $db->prepare("DELETE FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation','auto','manual')")
+               ->execute([$shipmentId]);
+
+            // ── 3. Insert chi phí KT mới (từ form) ──
+            $ktCosts = $_POST['kt_costs'] ?? [];
+            foreach ($ktCosts as $c) {
+                $name   = trim($c['name'] ?? '');
+                $amt    = (float)($c['amount'] ?? 0);
+                $source = in_array($c['source'] ?? '', ['kt','quotation','manual','auto']) ? $c['source'] : 'kt';
+                if ($name === '' && $amt == 0) continue;
+                $db->prepare("INSERT INTO shipment_costs (shipment_id, cost_name, amount, source, created_by) VALUES (?,?,?,?,?)")
+                   ->execute([$shipmentId, $name, $amt, $source, $_SESSION['user_id']]);
+            }
+
+            // Ghi log
+            try {
+                $db->prepare("INSERT INTO shipment_logs (shipment_id, triggered_by, note, user_id) VALUES (?,'cost_updated','KT cập nhật chi phí',?)")
+                   ->execute([$shipmentId, $_SESSION['user_id']]);
+            } catch (Exception $e) {}
+
+            // ── 4. Trả về danh sách chi phí KT mới để cập nhật "Báo giá tham chiếu" ──
+            $savedCosts = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? AND source IN ('kt','quotation') ORDER BY id");
+            $savedCosts->execute([$shipmentId]);
+            $ktSaved = $savedCosts->fetchAll();
+            $ktTotal = array_sum(array_column($ktSaved, 'amount'));
+
+            ob_end_clean();
+            echo json_encode([
+                'success'  => true,
+                'kt_costs' => $ktSaved,
+                'kt_total' => $ktTotal,
+            ]);
+        } catch (Throwable $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()]);
+        }
         exit;
     }
 

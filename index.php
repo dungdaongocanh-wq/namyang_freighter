@@ -305,6 +305,21 @@ case 'admin.settings':
     include __DIR__ . '/views/layouts/main.php';
     break;
 
+case 'admin.cost_groups':
+    requireRole('admin');
+    (new AdminController())->costGroups();
+    break;
+
+case 'admin.save_cost_group':
+    requireRole('admin');
+    (new AdminController())->saveCostGroup();
+    break;
+
+case 'admin.delete_cost_group':
+    requireRole('admin');
+    (new AdminController())->deleteCostGroup();
+    break;
+
     // ===== Reports =====
     case 'report.export':
         requireRole('admin', 'accounting', 'cs');
@@ -380,6 +395,17 @@ case 'admin.settings':
     case 'shared.delivery_board_confirm':
         requireRole(['ops', 'accounting', 'admin']);
         (new DeliveryBoardController())->confirmDelivered();
+        break;
+
+    // ===== Statement =====
+    case 'statement.index':
+        requireRole(['cs', 'admin', 'customer']);
+        (new StatementController())->index();
+        break;
+
+    case 'statement.export':
+        requireRole(['cs', 'admin', 'customer']);
+        (new StatementController())->export();
         break;
 
     default:
