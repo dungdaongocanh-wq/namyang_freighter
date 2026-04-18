@@ -152,7 +152,7 @@ class CustomerController {
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
             LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
+            LEFT JOIN shipment_customs cd ON cd.shipment_id = s.id
             $whereStr
             GROUP BY s.id
             ORDER BY s.active_date DESC, s.id DESC
