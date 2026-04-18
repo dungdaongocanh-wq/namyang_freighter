@@ -105,7 +105,7 @@ $statusMap = [
                       ✅ <?= htmlspecialchars($cdNum) ?>
                     </span>
 
-                    {{!-- Xem file --}}
+                    <!-- Xem file -->
                     <a href="<?= BASE_URL . '/' . htmlspecialchars($cdFile) ?>"
                        target="_blank"
                        class="btn btn-xs btn-outline-secondary py-0 px-1"
@@ -113,7 +113,7 @@ $statusMap = [
                       👁️ Xem
                     </a>
 
-                    {{!-- Xóa file (giữ số TK) --}}
+                    <!-- Xóa file (giữ số TK) -->
                     <form method="POST"
                           action="<?= BASE_URL ?>/?page=cs.delete_customs"
                           onsubmit="return confirm('Xoá file của tờ khai <?= htmlspecialchars(addslashes($cdNum)) ?>?')"
@@ -127,7 +127,7 @@ $statusMap = [
                       </button>
                     </form>
 
-                    {{!-- Đổi file --}}
+                    <!-- Đổi file -->
                     <button class="btn btn-xs btn-outline-warning py-0 px-1"
                             style="font-size:0.73rem"
                             data-bs-toggle="modal" data-bs-target="#uploadModal"
