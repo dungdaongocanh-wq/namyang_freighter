@@ -178,6 +178,12 @@ case 'cs.cancel':
         $controller->review();
         break;
 
+    case 'accounting.save_costs':
+        requireRole('accounting', 'admin');
+        $controller = new AccountingController();
+        $controller->saveCosts();
+        break;
+
     case 'accounting.push_customer':
         requireRole('accounting', 'admin');
         $controller = new AccountingController();
