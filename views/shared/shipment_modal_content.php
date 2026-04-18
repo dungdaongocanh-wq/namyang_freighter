@@ -222,42 +222,103 @@ $role = $_SESSION['role'] ?? '';
 
   <!-- ── Tab: Chi phí ── -->
   <div class="tab-pane fade" id="oc-tab-costs" role="tabpanel">
+    <?php if ($role === 'ops'): ?>
+    <form id="ocCostsForm">
+      <input type="hidden" name="shipment_id" value="<?= (int)$s['id'] ?>">
+
+      <?php if (!empty($quotationItemsList)): ?>
+      <div class="mb-3">
+        <div class="fw-semibold mb-2" style="color:#dc2626;font-size:0.84rem">
+          Các ô tích Chọn lấy từ báo giá khách hàng:
+        </div>
+        <?php
+        $checkedNames = array_column(
+            array_filter($costList, fn($c) => ($c['source'] ?? '') === 'quotation'),
+            'cost_name'
+        );
+        foreach ($quotationItemsList as $qi):
+          $chk = in_array($qi['description'], $checkedNames);
+        ?>
+        <div class="d-flex align-items-start gap-2 p-2 mb-1 rounded"
+             style="border:1px solid #e2e8f0;background:<?= $chk ? '#f0fdf4' : '#fff' ?>">
+          <input type="checkbox" name="quotation_items[]" value="<?= (int)$qi['id'] ?>"
+                 class="form-check-input mt-1 flex-shrink-0" style="width:20px;height:20px"
+                 <?= $chk ? 'checked' : '' ?>>
+          <div style="min-width:0">
+            <div class="fw-semibold" style="font-size:0.85rem"><?= htmlspecialchars($qi['description']) ?></div>
+            <?php if (!empty($qi['note'])): ?>
+            <div class="text-muted" style="font-size:0.75rem"><?= htmlspecialchars($qi['note']) ?></div>
+            <?php endif; ?>
+            <?php if ((float)($qi['amount'] ?? 0) > 0): ?>
+            <div class="text-success" style="font-size:0.75rem"><?= number_format((float)$qi['amount']) ?> đ</div>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <hr class="my-2">
+      <?php endif; ?>
+
+      <div class="mb-2">
+        <div class="fw-semibold mb-2" style="font-size:0.84rem">Chi Phí Thực tế OPS trả (nếu có):</div>
+        <div id="ocOpsCostRows">
+          <?php
+          $opsRows = array_values(array_filter($costList, fn($c) => ($c['source'] ?? 'ops') === 'ops'));
+          if (empty($opsRows)) $opsRows = [['cost_name'=>'','amount'=>'']];
+          foreach ($opsRows as $ri => $oc):
+          ?>
+          <div class="d-flex gap-2 mb-2 align-items-center oc-ops-row">
+            <input type="text" name="ops_costs[<?= $ri ?>][name]" class="form-control form-control-sm"
+                   placeholder="Nội dung" style="border:2px solid #dc2626"
+                   value="<?= htmlspecialchars($oc['cost_name'] ?? '') ?>">
+            <input type="number" name="ops_costs[<?= $ri ?>][amount]" class="form-control form-control-sm"
+                   placeholder="Số Tiền" style="width:130px;border:2px solid #dc2626" step="1000" min="0"
+                   value="<?= $oc['amount'] ?? '' ?>">
+            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                    onclick="this.closest('.oc-ops-row').remove()">✕</button>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-2"
+                onclick="ocAddOpsRow()">+ Thêm dòng</button>
+      </div>
+
+      <div class="d-flex gap-2 justify-content-center mt-3">
+        <button type="button" onclick="ocSaveCosts()"
+                class="btn btn-outline-danger px-4 fw-semibold">💾 Lưu</button>
+        <button type="button"
+                onclick="(() => { const el=document.getElementById('shipmentOffcanvas'); if(el) bootstrap.Offcanvas.getInstance(el)?.hide(); })()"
+                class="btn btn-outline-danger px-4 fw-semibold">✕ Đóng</button>
+      </div>
+    </form>
+
+    <?php else: ?>
     <?php if (empty($costList)): ?>
-    <div class="oc-empty">
-      <span class="oc-empty-icon">💰</span>
-      <p class="mb-0 small">Chưa có chi phí nào</p>
-    </div>
+    <div class="oc-empty"><span class="oc-empty-icon">💰</span><p class="mb-0 small">Chưa có chi phí nào</p></div>
     <?php else: ?>
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0" style="font-size:0.83rem">
         <thead style="background:#f8fafc;color:#64748b">
-          <tr>
-            <th class="ps-2">#</th>
-            <th>Tên chi phí</th>
-            <th class="text-center">SL</th>
-            <th class="text-end">Đơn giá</th>
-            <th class="text-end pe-2">Thành tiền</th>
-          </tr>
+          <tr><th class="ps-2">#</th><th>Tên chi phí</th><th class="text-end pe-2">Thành tiền</th></tr>
         </thead>
         <tbody>
           <?php foreach ($costList as $i => $c): ?>
           <tr>
             <td class="ps-2 text-muted"><?= $i + 1 ?></td>
             <td><?= htmlspecialchars($c['cost_name'] ?? $c['name'] ?? '-') ?></td>
-            <td class="text-center"><?= (int)($c['quantity'] ?? 1) ?></td>
-            <td class="text-end"><?= number_format((float)($c['unit_price'] ?? $c['amount'] ?? 0)) ?></td>
             <td class="text-end pe-2 fw-semibold"><?= number_format((float)$c['amount']) ?> đ</td>
           </tr>
           <?php endforeach; ?>
         </tbody>
         <tfoot>
           <tr style="background:#f0fdf4">
-            <td colspan="4" class="ps-2 fw-bold">Tổng cộng</td>
+            <td colspan="2" class="ps-2 fw-bold">Tổng cộng</td>
             <td class="text-end pe-2 fw-bold text-success"><?= number_format($totalCost) ?> đ</td>
           </tr>
         </tfoot>
       </table>
     </div>
+    <?php endif; ?>
     <?php endif; ?>
   </div>
 
@@ -400,5 +461,53 @@ function ocUploadPhotos(input, shipmentId) {
       document.getElementById('ocUploadProgress').classList.add('d-none');
       alert('Lỗi upload ảnh!');
     });
+}
+
+let ocOpsRowIdx = <?php echo max(1, count(array_filter($costList ?? [], fn($c) => ($c['source'] ?? 'ops') === 'ops'))); ?>;
+
+function ocAddOpsRow() {
+  const container = document.getElementById('ocOpsCostRows');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'oc-ops-row d-flex gap-2 mb-2 align-items-center';
+  div.innerHTML = `
+    <input type="text" name="ops_costs[${ocOpsRowIdx}][name]"
+           class="form-control form-control-sm" placeholder="Nội dung"
+           style="border:2px solid #dc2626">
+    <input type="number" name="ops_costs[${ocOpsRowIdx}][amount]"
+           class="form-control form-control-sm" placeholder="Số Tiền"
+           style="width:130px;border:2px solid #dc2626" step="1000" min="0">
+    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+            onclick="this.closest('.oc-ops-row').remove()">✕</button>
+  `;
+  container.appendChild(div);
+  ocOpsRowIdx++;
+}
+
+function ocSaveCosts() {
+  const form = document.getElementById('ocCostsForm');
+  if (!form) return;
+  const data = new FormData(form);
+  const btn  = document.querySelector('[onclick="ocSaveCosts()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+  fetch('<?= BASE_URL ?>/?page=ops.save_costs_modal', {
+    method: 'POST',
+    body: data
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (btn) { btn.disabled = false; }
+    if (d.success) {
+      if (btn) { btn.innerHTML = '✅ Đã lưu!'; setTimeout(() => { btn.innerHTML = '💾 Lưu'; }, 2000); }
+    } else {
+      if (btn) btn.innerHTML = '💾 Lưu';
+      alert(d.message || 'Lỗi lưu chi phí!');
+    }
+  })
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '💾 Lưu'; }
+    alert('Lỗi kết nối!');
+  });
 }
 </script>
