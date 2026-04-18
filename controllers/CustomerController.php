@@ -147,10 +147,12 @@ class CustomerController {
         $stmt = $db->prepare("
             SELECT s.*,
                    c.company_name, c.customer_code as cust_code,
-                   COALESCE(SUM(sc.amount),0) as total_cost
+                   COALESCE(SUM(sc.amount),0) as total_cost,
+                   GROUP_CONCAT(DISTINCT cd.cd_number ORDER BY cd.id SEPARATOR ', ') as cd_numbers
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
             LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
+            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
             $whereStr
             GROUP BY s.id
             ORDER BY s.active_date DESC, s.id DESC
@@ -159,6 +161,34 @@ class CustomerController {
         $stmt->execute($params);
         $shipments  = $stmt->fetchAll();
         $totalPages = ceil($totalRows / $perPage);
+
+        // Cost groups & costs by shipment (for Excel-style table)
+        $costGroups = $db->query("
+            SELECT id, name FROM cost_groups WHERE is_active=1 ORDER BY sort_order, id
+        ")->fetchAll();
+
+        $costsByShipment = [];
+        if (!empty($shipments)) {
+            $ids            = array_column($shipments, 'id');
+            $inPlaceholders = implode(',', array_fill(0, count($ids), '?'));
+
+            $costsStmt = $db->prepare("
+                SELECT sc.shipment_id, sc.amount,
+                       COALESCE(qi.cost_group_id, NULL) as cost_group_id
+                FROM shipment_costs sc
+                LEFT JOIN quotation_items qi ON sc.source = 'quotation' AND qi.description = sc.cost_name
+                WHERE sc.shipment_id IN ($inPlaceholders)
+                  AND sc.source IN ('kt','quotation','manual','auto')
+            ");
+            $costsStmt->execute($ids);
+            foreach ($costsStmt->fetchAll() as $cost) {
+                $sid  = $cost['shipment_id'];
+                $key  = $cost['cost_group_id'] ?? 'ungrouped';
+                if (!isset($costsByShipment[$sid])) $costsByShipment[$sid] = [];
+                if (!isset($costsByShipment[$sid][$key])) $costsByShipment[$sid][$key] = 0;
+                $costsByShipment[$sid][$key] += (float)$cost['amount'];
+            }
+        }
 
         // Tháng filter
         if (in_array($role, ['cs', 'admin'])) {
