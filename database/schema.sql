@@ -106,7 +106,7 @@ CREATE TABLE delivery_signatures (
   trip_id INT NULL,
   signed_by_name VARCHAR(100),
   signature_path VARCHAR(255),
-  driver_id INT,
+  signed_by_driver INT,
   signed_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (shipment_id) REFERENCES shipments(id)
 );
@@ -114,12 +114,12 @@ CREATE TABLE delivery_signatures (
 CREATE TABLE shipment_costs (
   id INT PRIMARY KEY AUTO_INCREMENT,
   shipment_id INT NOT NULL,
-  service_name VARCHAR(100),
+  cost_name VARCHAR(100),
   quantity DECIMAL(10,2),
   unit VARCHAR(20),
   unit_price DECIMAL(15,2),
   amount DECIMAL(15,2),
-  source ENUM('auto','manual') DEFAULT 'auto',
+  source ENUM('auto','manual','ops','kt') DEFAULT 'auto',
   created_by INT,
   created_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (shipment_id) REFERENCES shipments(id)
@@ -128,18 +128,33 @@ CREATE TABLE shipment_costs (
 CREATE TABLE quotations (
   id INT PRIMARY KEY AUTO_INCREMENT,
   customer_id INT NULL,
-  service_name VARCHAR(100),
-  unit VARCHAR(20),
-  unit_price DECIMAL(15,2),
-  valid_from DATE,
-  valid_to DATE,
-  is_active TINYINT DEFAULT 1
+  name VARCHAR(200) NOT NULL DEFAULT 'Báo giá',
+  valid_from DATE NULL,
+  valid_to DATE NULL,
+  is_active TINYINT DEFAULT 1,
+  note TEXT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+CREATE TABLE quotation_items (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  quotation_id INT NOT NULL,
+  description VARCHAR(255),
+  currency VARCHAR(10) DEFAULT 'VND',
+  unit_price DECIMAL(15,2) DEFAULT 0,
+  quantity DECIMAL(10,2) DEFAULT 1,
+  amount DECIMAL(15,2) DEFAULT 0,
+  vat_pct INT DEFAULT 8,
+  note TEXT NULL,
+  sort_order INT DEFAULT 0,
+  FOREIGN KEY (quotation_id) REFERENCES quotations(id)
 );
 
 CREATE TABLE approval_history (
   id INT PRIMARY KEY AUTO_INCREMENT,
   shipment_id INT NOT NULL,
-  action ENUM('approved','rejected'),
+  action ENUM('approved','rejected','resubmitted'),
   customer_id INT,
   user_id INT,
   reason TEXT NULL,

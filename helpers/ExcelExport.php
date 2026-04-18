@@ -189,6 +189,65 @@ class ExcelExport
         }
     }
 
+    /**
+     * Xuất báo cáo danh sách lô hàng ra file Excel.
+     *
+     * @param array $rows Dữ liệu lô hàng (kết quả từ ReportController::export())
+     */
+    public function exportReport(array $rows): void
+    {
+        self::requireSpreadsheet();
+
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet       = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Báo cáo lô hàng');
+
+            $headers = [
+                'A' => 'HAWB',
+                'B' => 'MAWB',
+                'C' => 'Chuyến bay',
+                'D' => 'Mã KH',
+                'E' => 'Tên khách hàng',
+                'F' => 'Số kiện',
+                'G' => 'Trọng lượng (kg)',
+                'H' => 'Ngày đến (ETA)',
+                'I' => 'Ngày hoạt động',
+                'J' => 'Trạng thái',
+                'K' => 'Tổng phí (VND)',
+                'L' => 'Ghi chú',
+            ];
+
+            self::writeHeaderRow($sheet, $headers);
+
+            $rowNum = 2;
+            foreach ($rows as $s) {
+                $sheet->setCellValue("A{$rowNum}", htmlspecialchars($s['hawb']          ?? '', ENT_QUOTES, 'UTF-8'));
+                $sheet->setCellValue("B{$rowNum}", htmlspecialchars($s['mawb']          ?? '', ENT_QUOTES, 'UTF-8'));
+                $sheet->setCellValue("C{$rowNum}", htmlspecialchars($s['flight_no']     ?? '', ENT_QUOTES, 'UTF-8'));
+                $sheet->setCellValue("D{$rowNum}", htmlspecialchars($s['customer_code'] ?? '', ENT_QUOTES, 'UTF-8'));
+                $sheet->setCellValue("E{$rowNum}", htmlspecialchars($s['company_name']  ?? '', ENT_QUOTES, 'UTF-8'));
+                $sheet->setCellValue("F{$rowNum}", (int)($s['packages']                ?? 0));
+                $sheet->setCellValue("G{$rowNum}", (float)($s['weight']               ?? 0));
+                $sheet->setCellValue("H{$rowNum}", self::formatDateForExcel($s['eta']          ?? null));
+                $sheet->setCellValue("I{$rowNum}", self::formatDateForExcel($s['active_date']  ?? null));
+                $sheet->setCellValue("J{$rowNum}", self::translateStatus($s['status']          ?? ''));
+                $sheet->setCellValue("K{$rowNum}", (float)($s['total_cost']            ?? 0));
+                $sheet->setCellValue("L{$rowNum}", htmlspecialchars($s['remark']       ?? '', ENT_QUOTES, 'UTF-8'));
+                $rowNum++;
+            }
+
+            self::autoSizeColumns($sheet, array_keys($headers));
+
+            $filename = 'bao-cao-lo-hang-' . date('Ymd-His') . '.xlsx';
+            self::sendDownload($spreadsheet, $filename);
+        } catch (Exception $e) {
+            error_log('[ExcelExport::exportReport] ' . $e->getMessage());
+            http_response_code(500);
+            echo 'Lỗi xuất file báo cáo: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
