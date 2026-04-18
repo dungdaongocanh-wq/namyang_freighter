@@ -48,7 +48,7 @@ class QuotationController {
     public function create() {
         requireRole(['admin', 'accounting']);
 
-        $db        = $this->getDB();
+        $db        = getDB();
         $customers = $db->query("
             SELECT id, customer_code, company_name
             FROM customers WHERE is_active=1 ORDER BY customer_code
@@ -197,9 +197,5 @@ class QuotationController {
         } else {
             $this->index();
         }
-    }
-
-    private function getDB(): PDO {
-        return getDB();
     }
 }

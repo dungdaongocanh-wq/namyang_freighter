@@ -36,10 +36,12 @@ class QuotationService {
 
     // Cập nhật dịch vụ
     public function update(int $id, array $data): bool {
-        $fields = [];
-        $params = ['id' => $id];
+        $allowed = ['service_type', 'service_name', 'unit', 'unit_price', 'note', 'sort_order'];
+        $fields  = [];
+        $params  = ['id' => $id];
         foreach ($data as $k => $v) {
-            $fields[] = "`$k` = :$k";
+            if (!in_array($k, $allowed, true)) continue;
+            $fields[]  = "`$k` = :$k";
             $params[$k] = $v;
         }
         if (empty($fields)) return false;
