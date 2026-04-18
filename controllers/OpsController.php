@@ -553,7 +553,7 @@ class OpsController {
         $db->prepare("DELETE FROM shipment_costs WHERE shipment_id = ?")->execute([$shipmentId]);
 
         // Chi phí từ báo giá
-        $qIds = array_map('intval', $_POST['quotation_items'] ?? []);
+        $qIds = array_unique(array_map('intval', $_POST['quotation_items'] ?? []));
         if (!empty($qIds)) {
             $ph    = implode(',', array_fill(0, count($qIds), '?'));
             $items = $db->prepare("SELECT id, description, amount FROM quotation_items WHERE id IN ($ph)");

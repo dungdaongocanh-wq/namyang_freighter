@@ -383,8 +383,12 @@ public function deleteCustomsRecord() {
             $qiStmt = $db->prepare("
                 SELECT qi.id, qi.description, qi.unit_price, qi.quantity, qi.amount, qi.note, qi.currency
                 FROM quotation_items qi
-                JOIN quotations q ON qi.quotation_id = q.id
-                WHERE q.customer_id = ? AND q.is_active = 1
+                WHERE qi.quotation_id = (
+                    SELECT id FROM quotations
+                    WHERE customer_id = ? AND is_active = 1
+                    ORDER BY id DESC
+                    LIMIT 1
+                )
                 ORDER BY qi.sort_order, qi.id
             ");
             $qiStmt->execute([$s['customer_id']]);

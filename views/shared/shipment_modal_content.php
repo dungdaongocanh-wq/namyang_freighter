@@ -232,12 +232,15 @@ $role = $_SESSION['role'] ?? '';
           Các ô tích Chọn lấy từ báo giá khách hàng:
         </div>
         <?php
-        $checkedNames = array_column(
-            array_filter($costList, fn($c) => ($c['source'] ?? '') === 'quotation'),
-            'cost_name'
-        );
+        $checkedNames = [];
+        foreach ($costList as $_ck) {
+            if (($_ck['source'] ?? '') === 'quotation') {
+                $checkedNames[] = trim($_ck['cost_name']);
+            }
+        }
+        $checkedNames = array_unique($checkedNames);
         foreach ($quotationItemsList as $qi):
-          $chk = in_array($qi['description'], $checkedNames);
+          $chk = in_array(trim($qi['description']), $checkedNames);
         ?>
         <div class="d-flex align-items-start gap-2 p-2 mb-1 rounded"
              style="border:1px solid #e2e8f0;background:<?= $chk ? '#f0fdf4' : '#fff' ?>">
