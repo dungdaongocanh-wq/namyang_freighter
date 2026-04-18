@@ -565,8 +565,8 @@ class OpsController {
             $items = $db->prepare("SELECT id, description, amount FROM quotation_items WHERE id IN ($ph)");
             $items->execute($qIds);
             foreach ($items->fetchAll() as $qi) {
-                $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,created_by) VALUES (?,?,?,'quotation',?)")
-                   ->execute([$shipmentId, $qi['description'], (float)$qi['amount'], $_SESSION['user_id']]);
+                $db->prepare("INSERT INTO shipment_costs (shipment_id,cost_name,amount,source,quotation_item_id,created_by) VALUES (?,?,?,'quotation',?,?)")
+                   ->execute([$shipmentId, $qi['description'], (float)$qi['amount'], (int)$qi['id'], $_SESSION['user_id']]);
             }
         }
 
