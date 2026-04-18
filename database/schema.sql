@@ -119,10 +119,12 @@ CREATE TABLE shipment_costs (
   unit VARCHAR(20),
   unit_price DECIMAL(15,2),
   amount DECIMAL(15,2),
-  source ENUM('auto','manual','ops','kt') DEFAULT 'auto',
+  source ENUM('auto','manual','ops','kt','quotation') DEFAULT 'auto',
+  quotation_item_id INT NULL,
   created_by INT,
   created_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+  FOREIGN KEY (shipment_id) REFERENCES shipments(id),
+  FOREIGN KEY (quotation_item_id) REFERENCES quotation_items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE quotations (
@@ -197,6 +199,10 @@ CREATE TABLE notifications (
   is_read TINYINT DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Migration (run on existing DB):
+-- ALTER TABLE shipment_costs MODIFY COLUMN source ENUM('auto','manual','ops','kt','quotation') DEFAULT 'auto';
+-- ALTER TABLE shipment_costs ADD COLUMN quotation_item_id INT NULL AFTER source, ADD FOREIGN KEY (quotation_item_id) REFERENCES quotation_items(id) ON DELETE SET NULL;
 
 -- Seed admin user (password: admin123)
 INSERT INTO users (username, password, full_name, role) VALUES
