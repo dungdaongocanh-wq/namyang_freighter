@@ -75,7 +75,7 @@
         </thead>
         <tbody>
           <?php foreach ($reviewList as $s): ?>
-          <tr>
+          <tr data-id="<?= $s['id'] ?>" style="cursor:pointer">
             <td class="ps-4">
               <span class="fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></span>
             </td>

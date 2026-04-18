@@ -207,6 +207,23 @@ $bottomNav = ($role === 'driver') ? $bottomNavDriver : $bottomNavOps;
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- ═══ SHIPMENT OFFCANVAS (mobile — full width) ═══ -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="shipmentOffcanvas"
+     style="width:100vw">
+  <div class="offcanvas-header border-bottom py-3"
+       style="background:linear-gradient(90deg,#1e3a5f,#2d6a9f);color:#fff">
+    <h6 class="offcanvas-title fw-bold mb-0">📦 Chi tiết lô hàng</h6>
+    <button type="button" class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0" id="shipmentOffcanvasBody">
+    <div class="text-center py-5 text-muted">
+      <div class="spinner-border spinner-border-sm me-2"></div> Đang tải...
+    </div>
+  </div>
+</div>
+
 <script>
 document.getElementById('notifOffcanvas')?.addEventListener('show.bs.offcanvas', function() {
   fetch('<?= BASE_URL ?>/?page=notifications.read&action=get')
@@ -224,6 +241,28 @@ document.getElementById('notifOffcanvas')?.addEventListener('show.bs.offcanvas',
         </div>
       `).join('');
     }).catch(() => {});
+});
+
+// ── Shipment Offcanvas ───────────────────────────────────────
+const _shipmentOffcanvas = new bootstrap.Offcanvas(document.getElementById('shipmentOffcanvas'));
+
+function openShipmentDetail(id) {
+  const body = document.getElementById('shipmentOffcanvasBody');
+  body.innerHTML = '<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải...</div>';
+  _shipmentOffcanvas.show();
+  fetch('<?= BASE_URL ?>/?page=shipment.modal&id=' + id)
+    .then(r => r.text())
+    .then(html => { body.innerHTML = html; })
+    .catch(() => { body.innerHTML = '<div class="p-4 text-danger">❌ Lỗi tải dữ liệu.</div>'; });
+}
+
+// Delegate click
+document.addEventListener('click', function(e) {
+  const row = e.target.closest('[data-id]');
+  if (!row) return;
+  if (e.target.closest('a, button, input, select, textarea')) return;
+  e.preventDefault();
+  openShipmentDetail(row.dataset.id);
 });
 </script>
 </body>
