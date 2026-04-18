@@ -73,19 +73,17 @@ class DeliveryBoardController {
         $costList = $cStmt->fetchAll();
 
         // Lấy quotation items theo khách hàng
+        // Ưu tiên báo giá riêng, fallback sang báo giá chung nếu không có
         $quotationItemsList = [];
-        if (!empty($shipment['customer_id'])) {
+        $quotationId = QuotationHelper::getQuotationId($db, $shipment['customer_id'] ? (int)$shipment['customer_id'] : null);
+        if ($quotationId) {
             $qiStmt = $db->prepare("
                 SELECT qi.id, qi.description, qi.amount, qi.note
                 FROM quotation_items qi
-                WHERE qi.quotation_id = (
-                    SELECT id FROM quotations
-                    WHERE customer_id = ? AND is_active = 1
-                    ORDER BY id DESC LIMIT 1
-                )
+                WHERE qi.quotation_id = ?
                 ORDER BY qi.sort_order, qi.id
             ");
-            $qiStmt->execute([$shipment['customer_id']]);
+            $qiStmt->execute([$quotationId]);
             $quotationItemsList = $qiStmt->fetchAll();
         }
 

@@ -385,20 +385,17 @@ public function deleteCustomsRecord() {
         $totalCost = array_sum(array_column($costList, 'amount'));
 
         // Load quotation items cho khách hàng (dùng trong tab chi phí OPS)
+        // Ưu tiên báo giá riêng, fallback sang báo giá chung nếu không có
         $quotationItemsList = [];
-        if (!empty($s['customer_id'])) {
+        $quotationId = QuotationHelper::getQuotationId($db, $s['customer_id'] ? (int)$s['customer_id'] : null);
+        if ($quotationId) {
             $qiStmt = $db->prepare("
                 SELECT qi.id, qi.description, qi.unit_price, qi.quantity, qi.amount, qi.note, qi.currency
                 FROM quotation_items qi
-                WHERE qi.quotation_id = (
-                    SELECT id FROM quotations
-                    WHERE customer_id = ? AND is_active = 1
-                    ORDER BY id DESC
-                    LIMIT 1
-                )
+                WHERE qi.quotation_id = ?
                 ORDER BY qi.sort_order, qi.id
             ");
-            $qiStmt->execute([$s['customer_id']]);
+            $qiStmt->execute([$quotationId]);
             $quotationItemsList = $qiStmt->fetchAll();
         }
 
