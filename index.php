@@ -210,49 +210,49 @@ case 'cs.cancel':
 
     // ===== Customer =====
     case 'customer.dashboard':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->dashboard();
         break;
 
     case 'customer.shipment_list':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->shipmentList();
         break;
 
     case 'customer.shipment_detail':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->shipmentDetail();
         break;
 
     case 'customer.pending_approval':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->pendingApproval();
         break;
 
     case 'customer.approve':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->approve();
         break;
 
     case 'customer.reject':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->reject();
         break;
 
     case 'customer.history':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->history();
         break;
 
     case 'customer.debt':
-        requireRole('customer', 'admin');
+        requireRole(['customer', 'cs', 'admin']);
         $controller = new CustomerController();
         $controller->debt();
         break;

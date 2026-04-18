@@ -73,10 +73,12 @@ $role = $_SESSION['role'] ?? '';
       <?php endif; ?>
     </button>
   </li>
+  <?php if (in_array($role, ['ops', 'accounting'])): ?>
   <li class="nav-item" role="presentation">
     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#oc-tab-costs"
             type="button" role="tab">💰 <span class="d-none d-sm-inline">Chi phí</span></button>
   </li>
+  <?php endif; ?>
   <li class="nav-item" role="presentation">
     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#oc-tab-logs"
             type="button" role="tab">📋 <span class="d-none d-sm-inline">Lịch sử</span></button>
@@ -318,6 +320,7 @@ $role = $_SESSION['role'] ?? '';
     <?php endif; ?>
   </div>
 
+  <?php if (in_array($role, ['ops', 'accounting'])): ?>
   <!-- ── Tab: Chi phí ── -->
   <div class="tab-pane fade" id="oc-tab-costs" role="tabpanel">
     <?php if ($role === 'ops'): ?>
@@ -422,6 +425,7 @@ $role = $_SESSION['role'] ?? '';
     <?php endif; ?>
     <?php endif; ?>
   </div>
+  <?php endif; ?>
 
   <!-- ── Tab: Lịch sử ── -->
   <div class="tab-pane fade" id="oc-tab-logs" role="tabpanel">

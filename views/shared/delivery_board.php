@@ -87,7 +87,6 @@ $role = $_SESSION['role'] ?? '';
             <th class="text-center">Ngày active</th>
             <th class="text-center">Biên bản</th>
             <th class="text-center">Trạng thái</th>
-            <th class="text-end">Chi phí</th>
             <th class="text-center pe-3">Thao tác</th>
           </tr>
         </thead>
@@ -134,13 +133,6 @@ $role = $_SESSION['role'] ?? '';
             </td>
             <td class="text-center">
               <span class="badge bg-<?= $clr ?>"><?= $lbl ?></span>
-            </td>
-            <td class="text-end">
-              <?php if ($noCost): ?>
-              <span class="text-danger fw-semibold small">Chưa nhập</span>
-              <?php else: ?>
-              <span class="fw-semibold"><?= number_format((float)$row['total_cost']) ?> đ</span>
-              <?php endif; ?>
             </td>
             <td class="text-center pe-3">
               <div class="d-flex gap-1 justify-content-center flex-wrap">

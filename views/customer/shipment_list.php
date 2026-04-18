@@ -73,7 +73,7 @@ $statusBadge = function($status) {
 <div class="card" style="border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
   <div class="card-header bg-white py-3 px-4" style="border-radius:12px 12px 0 0">
     <h6 class="mb-0 fw-bold">
-      📦 Lô hàng của tôi
+      📦 <?= in_array($role ?? '', ['cs', 'admin']) ? 'Tất cả lô hàng' : 'Lô hàng của tôi' ?>
       <span class="badge bg-primary ms-1"><?= number_format($totalRows) ?></span>
     </h6>
   </div>
@@ -89,6 +89,9 @@ $statusBadge = function($status) {
         <thead style="background:#f8fafc;color:#64748b;font-size:0.78rem">
           <tr>
             <th class="ps-4">HAWB</th>
+            <?php if (in_array($role ?? '', ['cs', 'admin'])): ?>
+            <th>Khách hàng</th>
+            <?php endif; ?>
             <th>MAWB / Flight</th>
             <th>ETA</th>
             <th>Kiện / KG</th>
@@ -102,6 +105,11 @@ $statusBadge = function($status) {
           <tr style="cursor:pointer"
               onclick="location.href='<?= BASE_URL ?>/?page=customer.shipment_detail&id=<?= $s['id'] ?>'">
             <td class="ps-4 fw-semibold text-primary"><?= htmlspecialchars($s['hawb']) ?></td>
+            <?php if (in_array($role ?? '', ['cs', 'admin'])): ?>
+            <td>
+              <div class="small"><?= htmlspecialchars($s['company_name'] ?? $s['cust_code'] ?? '-') ?></div>
+            </td>
+            <?php endif; ?>
             <td>
               <div class="small"><?= htmlspecialchars($s['mawb'] ?? '-') ?></div>
               <small class="text-muted"><?= htmlspecialchars($s['flight_no'] ?? '') ?></small>
