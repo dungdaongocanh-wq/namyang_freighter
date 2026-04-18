@@ -312,6 +312,10 @@ class OpsController {
         $shipStmt->execute([$tripId]);
         $shipments = $shipStmt->fetchAll();
 
+        foreach ($shipments as $_s) {
+            try { StateTransition::transition((int)$_s['id'], 'ops_complete', (int)$_SESSION['user_id'], 'In biên bản giao hàng trip #' . $tripId); } catch (Exception $e) { error_log('[printMultiDeliveryNote] ' . $e->getMessage()); }
+        }
+
         if (empty($shipments)) {
             header('Location: ' . BASE_URL . '/?page=ops.create_trip&err=not_found');
             exit;
@@ -503,6 +507,7 @@ class OpsController {
                 $dnId = $db->lastInsertId();
                 $db->prepare("UPDATE delivery_notes SET printed_at=NOW(), printed_by=? WHERE id=?")
                    ->execute([$_SESSION['user_id'], $dnId]);
+                try { StateTransition::transition($id, 'ops_complete', (int)$_SESSION['user_id'], 'In biên bản giao hàng'); } catch (Exception $e) { error_log('[printDeliveryNote] ' . $e->getMessage()); }
                 $dnStmt2 = $db->prepare("
                     SELECT dn.*, u.full_name as created_by_name
                     FROM delivery_notes dn
@@ -526,6 +531,7 @@ class OpsController {
                 $db->prepare("UPDATE delivery_notes SET printed_at=NOW(), printed_by=? WHERE id=?")
                    ->execute([$_SESSION['user_id'], $deliveryNote['id']]);
             }
+            try { StateTransition::transition($id, 'ops_complete', (int)$_SESSION['user_id'], 'In biên bản giao hàng'); } catch (Exception $e) { error_log('[printDeliveryNote] ' . $e->getMessage()); }
         }
 
         // Lấy chữ ký điện tử nếu có
