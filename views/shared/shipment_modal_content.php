@@ -169,7 +169,7 @@ $role = $_SESSION['role'] ?? '';
 
   <!-- ── Tab: Ảnh ── -->
   <div class="tab-pane fade" id="oc-tab-photos" role="tabpanel">
-    <?php if (empty($photoList) && !$signature): ?>
+    <?php if (empty($photoList) && !$signature && $role !== 'ops'): ?>
     <div class="oc-empty">
       <span class="oc-empty-icon">📷</span>
       <p class="mb-0 small">Chưa có ảnh nào</p>
@@ -195,6 +195,26 @@ $role = $_SESSION['role'] ?? '';
       <?php if (!empty($signature['signer_name'])): ?>
       <div class="small text-muted mt-1">Người ký: <?= htmlspecialchars($signature['signer_name']) ?></div>
       <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if ($role === 'ops'): ?>
+    <div class="mt-3">
+      <div id="ocUploadArea"
+           onclick="document.getElementById('ocPhotoInput').click()"
+           style="border:2px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;cursor:pointer">
+        <div style="font-size:2rem">📷</div>
+        <div class="small text-muted mt-1">Chụp hoặc chọn ảnh</div>
+      </div>
+      <input type="file" id="ocPhotoInput" multiple accept="image/*"
+             capture="environment" class="d-none"
+             onchange="ocUploadPhotos(this, <?= (int)$s['id'] ?>)">
+      <div id="ocPhotoPreview" class="row g-2 mt-2"></div>
+      <div id="ocUploadProgress" class="d-none mt-2">
+        <div class="progress" style="height:6px;border-radius:3px">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary w-100"></div>
+        </div>
+        <small class="text-muted">Đang upload...</small>
+      </div>
     </div>
     <?php endif; ?>
     <?php endif; ?>
@@ -287,6 +307,30 @@ $role = $_SESSION['role'] ?? '';
   <?php elseif ($role === 'ops'): ?>
   <a href="<?= BASE_URL ?>/?page=ops.detail&id=<?= (int)$s['id'] ?>"
      class="btn btn-sm btn-primary">📋 Chi tiết OPS</a>
+
+  <?php if ($s['status'] === 'cleared'): ?>
+  <a href="<?= BASE_URL ?>/?page=ops.download_customs&id=<?= (int)$s['id'] ?>"
+     class="btn btn-sm btn-warning">⬇️ Tải tờ khai TQ</a>
+  <?php endif; ?>
+
+  <?php if ($s['status'] === 'waiting_pickup'): ?>
+  <a href="<?= BASE_URL ?>/?page=ops.trip&id=<?= (int)$s['id'] ?>"
+     class="btn btn-sm btn-primary">🚚 Tạo chuyến giao</a>
+  <?php endif; ?>
+
+  <?php if ($s['status'] === 'in_transit'): ?>
+  <button class="btn btn-sm btn-success"
+          onclick="ocMarkDelivered(<?= (int)$s['id'] ?>)">✅ Đánh dấu đã giao</button>
+  <?php endif; ?>
+
+  <?php if (in_array($s['status'], ['waiting_pickup','in_transit','delivered','kt_reviewing','pending_approval','rejected','debt','invoiced'])): ?>
+  <a href="<?= BASE_URL ?>/?page=ops.print_delivery_note&id=<?= (int)$s['id'] ?>"
+     target="_blank"
+     class="btn btn-sm btn-outline-secondary">🖨️ In biên bản giao hàng</a>
+  <?php endif; ?>
+
+  <a href="<?= BASE_URL ?>/?page=ops.costs&id=<?= (int)$s['id'] ?>"
+     class="btn btn-sm btn-outline-primary">💰 Nhập chi phí</a>
   <?php elseif ($role === 'accounting'): ?>
   <a href="<?= BASE_URL ?>/?page=accounting.review&id=<?= (int)$s['id'] ?>"
      class="btn btn-sm btn-warning">🔍 Xét duyệt</a>
@@ -295,3 +339,49 @@ $role = $_SESSION['role'] ?? '';
      class="btn btn-sm btn-primary">📦 Xem chi tiết</a>
   <?php endif; ?>
 </div>
+
+<script>
+function ocMarkDelivered(id) {
+  if (!confirm('Xác nhận lô đã được giao?')) return;
+  fetch('<?= BASE_URL ?>/?page=ops.complete', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: 'shipment_id=' + id
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+  });
+}
+
+function ocUploadPhotos(input, shipmentId) {
+  if (!input.files.length) return;
+
+  const preview = document.getElementById('ocPhotoPreview');
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const col = document.createElement('div');
+      col.className = 'col-4';
+      col.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded-2"
+                            style="height:80px;width:100%;object-fit:cover;opacity:0.6">`;
+      preview.appendChild(col);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const formData = new FormData();
+  formData.append('shipment_id', shipmentId);
+  Array.from(input.files).forEach(f => formData.append('photos[]', f));
+
+  document.getElementById('ocUploadProgress').classList.remove('d-none');
+
+  fetch('<?= BASE_URL ?>/?page=ops.upload_photos', {method:'POST', body:formData})
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('ocUploadProgress').classList.add('d-none');
+      if (data.success) location.reload();
+    }).catch(() => {
+      document.getElementById('ocUploadProgress').classList.add('d-none');
+      alert('Lỗi upload ảnh!');
+    });
+}
+</script>
