@@ -4,6 +4,53 @@
 </div>
 <?php endif; ?>
 
+<!-- OPS Chi phí tổng quan -->
+<div class="mobile-card card mb-3" style="border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
+  <div class="card-body pb-2">
+    <h6 class="fw-bold mb-3" style="color:#1e3a5f">💸 Chi phí OPS đã bỏ ra</h6>
+    <div class="row g-2 mb-3">
+      <!-- Hôm nay -->
+      <div class="col-4">
+        <div class="text-center p-2 rounded-2" style="background:#fff7ed">
+          <div style="font-size:0.7rem;color:#9a3412;font-weight:600">Hôm nay</div>
+          <div class="fw-bold" style="font-size:0.9rem;color:#c2410c">
+            <?= number_format($opsCostToday) ?><span style="font-size:0.65rem">đ</span>
+          </div>
+        </div>
+      </div>
+      <!-- Tuần này -->
+      <div class="col-4">
+        <div class="text-center p-2 rounded-2" style="background:#eff6ff">
+          <div style="font-size:0.7rem;color:#1d4ed8;font-weight:600">Tuần này</div>
+          <div class="fw-bold" style="font-size:0.9rem;color:#1d4ed8">
+            <?= number_format($opsCostWeek) ?><span style="font-size:0.65rem">đ</span>
+          </div>
+        </div>
+      </div>
+      <!-- Tháng này -->
+      <div class="col-4">
+        <div class="text-center p-2 rounded-2" style="background:#f0fdf4">
+          <div style="font-size:0.7rem;color:#15803d;font-weight:600">Tháng này</div>
+          <div class="fw-bold" style="font-size:0.9rem;color:#15803d">
+            <?= number_format($opsCostMonth) ?><span style="font-size:0.65rem">đ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php if (!empty($opsCostBreakdown)): ?>
+    <div style="border-top:1px solid #f1f5f9;padding-top:8px">
+      <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-bottom:6px">Top chi phí tháng này:</div>
+      <?php foreach ($opsCostBreakdown as $b): ?>
+      <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:0.78rem">
+        <span class="text-muted"><?= htmlspecialchars($b['cost_name'] ?: '(không tên)') ?></span>
+        <span class="fw-semibold text-danger"><?= number_format($b['total']) ?>đ</span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+
 <!-- Lô chưa nhập chi phí -->
 <?php if (!$shipment && !empty($pendingCosts)): ?>
 <div class="mobile-card card mb-3">
