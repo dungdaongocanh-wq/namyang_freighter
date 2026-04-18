@@ -76,6 +76,15 @@ $role = $_SESSION['role'] ?? '';
       <p class="mt-2">Không có dữ liệu — vui lòng chọn khoảng thời gian</p>
     </div>
     <?php else: ?>
+    <?php
+    // Kiểm tra có chi phí không phân nhóm không
+    $hasUngrouped = false;
+    $sumUngrouped = 0;
+    foreach ($shipments as $s) {
+        $ug = (float)($costsByShipment[$s['id']]['ungrouped'] ?? 0);
+        if ($ug > 0) { $hasUngrouped = true; $sumUngrouped += $ug; }
+    }
+    ?>
     <div class="table-responsive">
       <table class="table table-bordered table-sm align-middle mb-0" style="font-size:0.82rem">
         <thead style="background:#1e3a5f;color:#fff;font-size:0.78rem">
@@ -90,6 +99,9 @@ $role = $_SESSION['role'] ?? '';
             <?php foreach ($costGroups as $cg): ?>
             <th class="text-end" style="min-width:90px"><?= htmlspecialchars(strtoupper($cg['name'])) ?></th>
             <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <th class="text-end" style="min-width:90px">KHÁC</th>
+            <?php endif; ?>
             <th class="text-end" style="min-width:90px;background:#163058">TOTAL</th>
             <th style="min-width:100px">NOTE</th>
           </tr>
@@ -108,7 +120,8 @@ $role = $_SESSION['role'] ?? '';
             foreach ($costGroups as $cg) {
                 $total += (float)($costsByShipment[$sid][$cg['id']] ?? 0);
             }
-            $total += (float)($costsByShipment[$sid]['ungrouped'] ?? 0);
+            $ungroupedAmt = (float)($costsByShipment[$sid]['ungrouped'] ?? 0);
+            $total += $ungroupedAmt;
 
             // Cộng vào sum
             foreach ($costGroups as $cg) {
@@ -131,6 +144,11 @@ $role = $_SESSION['role'] ?? '';
               <?= $amt > 0 ? number_format($amt) : '<span class="text-muted">-</span>' ?>
             </td>
             <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <td class="text-end">
+              <?= $ungroupedAmt > 0 ? number_format($ungroupedAmt) : '<span class="text-muted">-</span>' ?>
+            </td>
+            <?php endif; ?>
             <td class="text-end fw-semibold text-success">
               <?= $total > 0 ? number_format($total) : '<span class="text-muted">-</span>' ?>
             </td>
@@ -146,6 +164,9 @@ $role = $_SESSION['role'] ?? '';
               <?= number_format($sumByGroup[$cg['id']] ?? 0) ?>
             </td>
             <?php endforeach; ?>
+            <?php if ($hasUngrouped): ?>
+            <td class="text-end text-primary"><?= number_format($sumUngrouped) ?></td>
+            <?php endif; ?>
             <td class="text-end text-success"><?= number_format($sumTotal) ?></td>
             <td></td>
           </tr>

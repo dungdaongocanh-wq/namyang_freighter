@@ -59,10 +59,10 @@ $errMap = [
             <td class="text-center">
               <div class="d-flex gap-1 justify-content-center">
                 <button class="btn btn-sm btn-outline-primary"
-                        onclick="openModal(<?= $g['id'] ?>, '<?= htmlspecialchars(addslashes($g['name'])) ?>', <?= $g['sort_order'] ?>, <?= $g['is_active'] ?>)"
+                        onclick="openModal(<?= $g['id'] ?>, <?= json_encode($g['name']) ?>, <?= $g['sort_order'] ?>, <?= $g['is_active'] ?>)"
                         data-bs-toggle="modal" data-bs-target="#groupModal">✏️ Sửa</button>
                 <form method="POST" action="<?= BASE_URL ?>/?page=admin.delete_cost_group"
-                      onsubmit="return confirm('Xóa nhóm \'<?= htmlspecialchars(addslashes($g['name'])) ?>\'?')">
+                      onsubmit="return confirm('Xóa nhóm ' + <?= json_encode($g['name']) ?> + '?')">
                   <input type="hidden" name="id" value="<?= $g['id'] ?>">
                   <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Xóa</button>
                 </form>

@@ -192,17 +192,30 @@ class StatementController {
         foreach ($costGroups as $cg) {
             $headers[] = strtoupper($cg['name']);
         }
+
+        // Check if there are ungrouped costs
+        $hasUngrouped = false;
+        foreach ($costsByShipment as $costs) {
+            if (isset($costs['ungrouped']) && $costs['ungrouped'] > 0) {
+                $hasUngrouped = true;
+                break;
+            }
+        }
+        if ($hasUngrouped) {
+            $headers[] = 'KHÁC';
+        }
         $headers[] = 'TOTAL';
         $headers[] = 'NOTE';
 
-        $col = 'A';
+        $col = 1;
         foreach ($headers as $h) {
-            $sheet->setCellValue($col . '1', $h);
+            $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $sheet->setCellValue($colL . '1', $h);
             $col++;
         }
 
         // Style header row
-        $lastCol = chr(ord('A') + count($headers) - 1);
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
         $headerStyle = [
             'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
@@ -212,6 +225,9 @@ class StatementController {
         $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray($headerStyle);
 
         // Data rows
+        // Fixed columns: NO(1), DATE(2), CONSIGNEE(3), HAWB(4), CD NO.(5), PKG(6), GW(7)
+        // Cost group columns start at column 8
+        $fixedColCount = 7;
         $row = 2;
         $no  = 1;
         $colTotals = [];
@@ -219,7 +235,6 @@ class StatementController {
         foreach ($shipments as $s) {
             $sid    = $s['id'];
             $total  = 0;
-            $colIdx = 8; // 1-indexed, after PKG and GW columns
 
             $sheet->setCellValue('A' . $row, $no++);
             $sheet->setCellValue('B' . $row, $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '');
@@ -229,7 +244,7 @@ class StatementController {
             $sheet->setCellValue('F' . $row, (int)$s['packages']);
             $sheet->setCellValue('G' . $row, (float)$s['weight']);
 
-            $cgColIdx = 8;
+            $cgColIdx = $fixedColCount + 1;
             foreach ($costGroups as $cg) {
                 $amount = (float)($costsByShipment[$sid][$cg['id']] ?? 0);
                 $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
@@ -240,9 +255,16 @@ class StatementController {
                 $cgColIdx++;
             }
 
-            // Ungrouped costs in TOTAL
+            // Ungrouped costs
             $ungrouped = (float)($costsByShipment[$sid]['ungrouped'] ?? 0);
             $total    += $ungrouped;
+            if ($hasUngrouped) {
+                $ungroupedColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($ungroupedColLetter . $row, $ungrouped > 0 ? $ungrouped : '');
+                if (!isset($colTotals['ungrouped'])) $colTotals['ungrouped'] = 0;
+                $colTotals['ungrouped'] += $ungrouped;
+                $cgColIdx++;
+            }
 
             $totalColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
             $noteColLetter  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx + 1);
@@ -258,10 +280,15 @@ class StatementController {
 
         // Totals row
         $sheet->setCellValue('A' . $row, 'TOTAL');
-        $cgColIdx = 8;
+        $cgColIdx = $fixedColCount + 1;
         foreach ($costGroups as $cg) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
             $sheet->setCellValue($colLetter . $row, $colTotals[$cgColIdx] ?? 0);
+            $cgColIdx++;
+        }
+        if ($hasUngrouped) {
+            $ungroupedColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+            $sheet->setCellValue($ungroupedColLetter . $row, $colTotals['ungrouped'] ?? 0);
             $cgColIdx++;
         }
         $totalColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
@@ -277,8 +304,13 @@ class StatementController {
 
         // Number format for cost columns
         $numFmt = '#,##0';
-        $cgColIdx = 8;
+        $cgColIdx = $fixedColCount + 1;
         foreach ($costGroups as $cg) {
+            $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+            $sheet->getStyle($colL . '2:' . $colL . $row)->getNumberFormat()->setFormatCode($numFmt);
+            $cgColIdx++;
+        }
+        if ($hasUngrouped) {
             $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
             $sheet->getStyle($colL . '2:' . $colL . $row)->getNumberFormat()->setFormatCode($numFmt);
             $cgColIdx++;

@@ -202,7 +202,14 @@ $totalVat     = array_sum(array_map(fn($i) => $i['amount'] * $i['vat_pct'] / 100
 
 <script>
 // Danh sách nhóm chi phí cho dropdown dòng mới
-const costGroupOptions = `<option value="">-- Chưa phân nhóm --</option><?php foreach ($costGroups as $cg): ?><option value="<?= $cg['id'] ?>"><?= htmlspecialchars($cg['name']) ?></option><?php endforeach; ?>`;
+const costGroupsData = <?= json_encode(array_values($costGroups)) ?>;
+let costGroupOptions = '<option value="">-- Chưa phân nhóm --</option>';
+costGroupsData.forEach(function(cg) {
+  const name = String(cg.name)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  costGroupOptions += `<option value="${cg.id}">${name}</option>`;
+});
 
 // Tính thành tiền 1 dòng
 function calcRow(el) {
