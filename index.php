@@ -327,6 +327,16 @@ case 'admin.delete_cost_group':
         $controller->export();
         break;
 
+    case 'report.shipment':
+        requireRole(['admin', 'accounting', 'cs']);
+        (new ReportController())->shipmentReport();
+        break;
+
+    case 'report.ops_costs':
+        requireRole(['admin', 'accounting']);
+        (new ReportController())->opsCostReport();
+        break;
+
     // ===== Quotation =====
     case 'quotation.index':
     case 'quotation.create':

@@ -18,6 +18,7 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('shared.delivery_board', 'kanban',           'Bảng giao hàng',   $currentPage); ?>
 <?php sidebarLink('statement.index',    'bar-chart-line',      'Bảng kê chi tiết', $currentPage); ?>
 <?php sidebarLink('report.export',      'file-earmark-arrow-down', 'Xuất báo cáo', $currentPage); ?>
+<?php sidebarLink('report.shipment',    'file-earmark-bar-graph',  'BC Lô đã xác nhận', $currentPage); ?>
 <?php endif; ?>
 
 <?php if ($role === 'ops' || $role === 'admin'): ?>
@@ -45,6 +46,12 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('quotation.index',      'tags',            'Báo giá',           $currentPage); ?>
 <?php sidebarLink('statement.index',      'bar-chart-line',  'Bảng kê chi tiết',  $currentPage); ?>
 <?php sidebarLink('shared.delivery_board','kanban',          'Bảng giao hàng',    $currentPage); ?>
+<?php endif; ?>
+
+<?php if ($role === 'accounting' || $role === 'admin'): ?>
+<div class="nav-label">📊 Báo cáo</div>
+<?php sidebarLink('report.shipment', 'file-earmark-bar-graph', 'BC Lô đã xác nhận', $currentPage); ?>
+<?php sidebarLink('report.ops_costs', 'people', 'BC Chi phí OPS', $currentPage); ?>
 <?php endif; ?>
 
 <?php if ($role === 'customer'): ?>
