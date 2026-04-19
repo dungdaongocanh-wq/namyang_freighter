@@ -171,11 +171,15 @@ class StateTransition
             case 'import_tq_no_cd':
                 // Thông báo OPS khi lô hàng import mới sẵn sàng
                 NotificationHelper::notifyRole('ops', "Lô hàng {$hawb} đã import, trạng thái: {$newStatus}", $shipmentId);
+                // Thông báo Zalo
+                ZaloNotify::notifyRole('ops', "🆕 [Nam Yang]\nLô hàng mới: {$hawb}\nTrạng thái: {$newStatus}");
                 break;
 
             case 'customs_file_upload':
                 // CS tải file xong → báo OPS
                 NotificationHelper::notifyRole('ops', "Tờ khai lô hàng {$hawb} đã được tải lên, chờ lấy hàng", $shipmentId);
+                // Thông báo Zalo
+                ZaloNotify::notifyRole('ops', "📦 [Nam Yang]\nTờ khai lô hàng {$hawb} đã được CS tải lên.\nTrạng thái: Chờ lấy hàng ✅");
                 break;
 
             case 'ops_bulk_download':

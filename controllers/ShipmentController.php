@@ -519,6 +519,21 @@ public function deleteCustomsRecord() {
             }
         }
 
+        // Lấy thông tin lô hàng vừa update
+        $updatedStmt = $db->prepare("SELECT hawb FROM shipments WHERE id = ?");
+        $updatedStmt->execute([$id]);
+        $updatedShipment = $updatedStmt->fetch();
+        $hawb = htmlspecialchars($updatedShipment['hawb'] ?? "#{$id}", ENT_QUOTES, 'UTF-8');
+
+        // Lấy tên CS đang đăng nhập
+        $csName = htmlspecialchars($_SESSION['full_name'] ?? 'CS', ENT_QUOTES, 'UTF-8');
+
+        // Thông báo in-app cho OPS
+        NotificationHelper::notifyRole('ops', "CS vừa cập nhật lô hàng {$hawb}", $id);
+
+        // Thông báo Zalo cho OPS
+        ZaloNotify::notifyRole('ops', "✏️ [Nam Yang]\nCS ({$csName}) vừa cập nhật lô hàng: {$hawb}\nVui lòng kiểm tra lại thông tin.");
+
         header('Location: ' . BASE_URL . '/?page=cs.list&msg=saved');
         exit;
     }

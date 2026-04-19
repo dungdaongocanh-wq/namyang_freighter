@@ -32,3 +32,6 @@ spl_autoload_register(function ($class) {
 // Load config files
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/roles.php';
+
+// Load Zalo config
+require_once __DIR__ . '/zalo.php';
