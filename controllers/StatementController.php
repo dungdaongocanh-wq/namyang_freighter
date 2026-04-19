@@ -58,7 +58,7 @@ class StatementController {
                    GROUP_CONCAT(DISTINCT cd.cd_number ORDER BY cd.id SEPARATOR ', ') as cd_numbers
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
-            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
+            LEFT JOIN shipment_customs cd ON cd.shipment_id = s.id
             WHERE $whereStr
             GROUP BY s.id
             ORDER BY s.active_date ASC, s.id ASC
@@ -136,7 +136,7 @@ class StatementController {
                    GROUP_CONCAT(DISTINCT cd.cd_number ORDER BY cd.id SEPARATOR ', ') as cd_numbers
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
-            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
+            LEFT JOIN shipment_customs cd ON cd.shipment_id = s.id
             WHERE $whereStr
             GROUP BY s.id
             ORDER BY s.active_date ASC, s.id ASC
