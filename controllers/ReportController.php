@@ -202,7 +202,7 @@ class ReportController {
         $months = $db->query("
             SELECT DISTINCT DATE_FORMAT(s.active_date,'%Y-%m') as ym
             FROM shipments s
-            JOIN shipment_costs sc ON sc.shipment_id = s.id
+            JOIN shipment_costs sc ON sc.shipment_id = s.id AND sc.source = 'ops'
             JOIN users u ON u.id = sc.created_by AND u.role = 'ops' AND u.is_active = 1
             ORDER BY ym DESC LIMIT 36
         ")->fetchAll(PDO::FETCH_COLUMN);
@@ -246,7 +246,7 @@ class ReportController {
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
             LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
-            JOIN shipment_costs sc ON sc.shipment_id = s.id
+            JOIN shipment_costs sc ON sc.shipment_id = s.id AND sc.source = 'ops'
             JOIN users u ON u.id = sc.created_by AND u.role = 'ops' AND u.is_active = 1
             WHERE $whereStr
             GROUP BY s.id, sc.created_by
@@ -271,13 +271,12 @@ class ReportController {
         // Query 2: cost breakdown per (shipment, ops_user, cost_group)
         $stmt2 = $db->prepare("
             SELECT sc.shipment_id, sc.created_by as ops_user_id, sc.amount,
-                   COALESCE(qi.cost_group_id, NULL) as cost_group_id
+                   NULL as cost_group_id
             FROM shipment_costs sc
             JOIN users u ON u.id = sc.created_by AND u.role = 'ops' AND u.is_active = 1
             JOIN shipments s ON s.id = sc.shipment_id
-            LEFT JOIN quotation_items qi ON sc.source = 'quotation' AND qi.description = sc.cost_name
             WHERE $whereStr
-              AND sc.source IN ('kt','quotation','manual','auto')
+              AND sc.source = 'ops'
         ");
         $stmt2->execute($params);
 
