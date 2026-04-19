@@ -190,6 +190,392 @@ class ExcelExport
     }
 
     /**
+     * Xuất Báo cáo Lô hàng đã xác nhận ra file Excel.
+     *
+     * @param array  $shipments       Danh sách lô hàng
+     * @param array  $costGroups      Các nhóm chi phí
+     * @param array  $costsByShipment Chi phí theo từng lô
+     * @param string $dateFrom        Ngày bắt đầu
+     * @param string $dateTo          Ngày kết thúc
+     */
+    public static function exportShipmentReport(
+        array $shipments,
+        array $costGroups,
+        array $costsByShipment,
+        string $dateFrom,
+        string $dateTo
+    ): void {
+        self::requireSpreadsheet();
+
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet       = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('BC Lô đã xác nhận');
+
+            // Check ungrouped
+            $hasUngrouped = false;
+            foreach ($costsByShipment as $costs) {
+                if (!empty($costs['ungrouped'])) { $hasUngrouped = true; break; }
+            }
+
+            // Build header list
+            $headers = ['NO', 'DATE', 'CONSIGNEE', 'HAWB', 'CD NO.', 'PKG', 'GW (KG)'];
+            foreach ($costGroups as $cg) $headers[] = strtoupper($cg['name']);
+            if ($hasUngrouped) $headers[] = 'OTHER FEE';
+            $headers[] = 'TOTAL';
+            $headers[] = 'NOTE';
+
+            $totalCols = count($headers);
+            $lastColL  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
+
+            // Row 1: Title
+            $dfStr = $dateFrom ? date('d/m/Y', strtotime($dateFrom)) : '';
+            $dtStr = $dateTo   ? date('d/m/Y', strtotime($dateTo))   : '';
+            $title = 'BÁO CÁO LÔ HÀNG ĐÃ XÁC NHẬN';
+            if ($dfStr || $dtStr) $title .= " ({$dfStr} – {$dtStr})";
+            $sheet->setCellValue('A1', $title);
+            $sheet->mergeCells('A1:' . $lastColL . '1');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+            $sheet->getStyle('A1')->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+            // Row 3: Header
+            $col = 1;
+            foreach ($headers as $h) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $sheet->setCellValue($colL . '3', $h);
+                $col++;
+            }
+            $headerStyle = [
+                'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                               'startColor' => ['rgb' => '1E3A5F']],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ];
+            $sheet->getStyle('A3:' . $lastColL . '3')->applyFromArray($headerStyle);
+
+            // Data rows starting at row 4
+            $fixedCols = 7;
+            $row       = 4;
+            $no        = 1;
+            $colTotals = [];
+
+            foreach ($shipments as $s) {
+                $sid   = $s['id'];
+                $total = 0;
+
+                $sheet->setCellValue('A' . $row, $no++);
+                $sheet->setCellValue('B' . $row, $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '');
+                $sheet->setCellValue('C' . $row, $s['company_name'] ?? '');
+                $sheet->setCellValue('D' . $row, $s['hawb'] ?? '');
+                $sheet->setCellValue('E' . $row, $s['cd_numbers'] ?? '');
+                $sheet->setCellValue('F' . $row, (int)$s['packages']);
+                $sheet->setCellValue('G' . $row, (float)$s['weight']);
+
+                $cgColIdx = $fixedCols + 1;
+                foreach ($costGroups as $cg) {
+                    $amount = (float)($costsByShipment[$sid][$cg['id']] ?? 0);
+                    $colL   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                    $sheet->setCellValue($colL . $row, $amount > 0 ? $amount : '');
+                    $total += $amount;
+                    if (!isset($colTotals[$cgColIdx])) $colTotals[$cgColIdx] = 0;
+                    $colTotals[$cgColIdx] += $amount;
+                    $cgColIdx++;
+                }
+
+                $ug    = (float)($costsByShipment[$sid]['ungrouped'] ?? 0);
+                $total += $ug;
+                if ($hasUngrouped) {
+                    $ugColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                    $sheet->setCellValue($ugColL . $row, $ug > 0 ? $ug : '');
+                    if (!isset($colTotals['ungrouped'])) $colTotals['ungrouped'] = 0;
+                    $colTotals['ungrouped'] += $ug;
+                    $cgColIdx++;
+                }
+
+                $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $noteColL  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx + 1);
+                $sheet->setCellValue($totalColL . $row, $total > 0 ? $total : '');
+                $sheet->setCellValue($noteColL  . $row, $s['remark'] ?? '');
+                if (!isset($colTotals['total'])) $colTotals['total'] = 0;
+                $colTotals['total'] += $total;
+
+                $row++;
+            }
+
+            // Footer row — TỔNG CỘNG
+            $sheet->setCellValue('A' . $row, 'TỔNG CỘNG');
+            $cgColIdx = $fixedCols + 1;
+            foreach ($costGroups as $cg) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($colL . $row, $colTotals[$cgColIdx] ?? 0);
+                $cgColIdx++;
+            }
+            if ($hasUngrouped) {
+                $ugColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($ugColL . $row, $colTotals['ungrouped'] ?? 0);
+                $cgColIdx++;
+            }
+            $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+            $sheet->setCellValue($totalColL . $row, $colTotals['total'] ?? 0);
+
+            $footerStyle = [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                           'startColor' => ['rgb' => 'F0F7FF']],
+            ];
+            $sheet->getStyle('A' . $row . ':' . $lastColL . $row)->applyFromArray($footerStyle);
+
+            // Number format & auto-size
+            $numFmt   = '#,##0';
+            $cgColIdx = $fixedCols + 1;
+            $dataEnd  = $row;
+            foreach ($costGroups as $cg) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->getStyle($colL . '4:' . $colL . $dataEnd)->getNumberFormat()->setFormatCode($numFmt);
+                $cgColIdx++;
+            }
+            if ($hasUngrouped) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->getStyle($colL . '4:' . $colL . $dataEnd)->getNumberFormat()->setFormatCode($numFmt);
+                $cgColIdx++;
+            }
+            $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+            $sheet->getStyle($totalColL . '4:' . $totalColL . $dataEnd)->getNumberFormat()->setFormatCode($numFmt);
+
+            for ($i = 1; $i <= $totalCols; $i++) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                $sheet->getColumnDimension($colL)->setAutoSize(true);
+            }
+
+            $filename = 'bao-cao-lo-hang-confirmed-' . date('Ymd') . '.xlsx';
+            self::sendDownload($spreadsheet, $filename);
+        } catch (Exception $e) {
+            error_log('[ExcelExport::exportShipmentReport] ' . $e->getMessage());
+            http_response_code(500);
+            echo 'Lỗi xuất file Excel: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+        }
+    }
+
+    /**
+     * Xuất Báo cáo Chi phí OPS ra file Excel.
+     *
+     * @param array  $shipmentsByOps      Dữ liệu nhóm theo ops user
+     * @param array  $costsByOpsShipment  Chi phí theo [opsId][shipmentId][cgId]
+     * @param array  $costGroups          Các nhóm chi phí
+     * @param string $dateFrom            Ngày bắt đầu
+     * @param string $dateTo              Ngày kết thúc
+     */
+    public static function exportOpsCosts(
+        array $shipmentsByOps,
+        array $costsByOpsShipment,
+        array $costGroups,
+        string $dateFrom,
+        string $dateTo
+    ): void {
+        self::requireSpreadsheet();
+
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet       = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('BC Chi phí OPS');
+
+            // Check ungrouped
+            $hasUngrouped = false;
+            foreach ($costsByOpsShipment as $opsId => $shipCosts) {
+                foreach ($shipCosts as $sid => $costs) {
+                    if (!empty($costs['ungrouped'])) { $hasUngrouped = true; break 2; }
+                }
+            }
+
+            // Build header list
+            $headers = ['NO', 'DATE', 'CONSIGNEE', 'HAWB', 'CD NO.', 'PKG', 'GW (KG)'];
+            foreach ($costGroups as $cg) $headers[] = strtoupper($cg['name']);
+            if ($hasUngrouped) $headers[] = 'OTHER FEE';
+            $headers[] = 'TOTAL';
+            $headers[] = 'NOTE';
+
+            $totalCols = count($headers);
+            $lastColL  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
+
+            // Row 1: Title
+            $dfStr = $dateFrom ? date('d/m/Y', strtotime($dateFrom)) : '';
+            $dtStr = $dateTo   ? date('d/m/Y', strtotime($dateTo))   : '';
+            $title = 'BÁO CÁO CHI PHÍ OPS';
+            if ($dfStr || $dtStr) $title .= " ({$dfStr} – {$dtStr})";
+            $sheet->setCellValue('A1', $title);
+            $sheet->mergeCells('A1:' . $lastColL . '1');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+            $sheet->getStyle('A1')->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+            $fixedCols = 7;
+            $row       = 2;
+
+            // Grand totals accumulators
+            $grandByGroup  = array_fill_keys(array_column($costGroups, 'id'), 0);
+            $grandUngrouped = 0;
+            $grandTotal    = 0;
+
+            $numFmt = '#,##0';
+
+            foreach ($shipmentsByOps as $opsId => $opsData) {
+                $opsShipments = $opsData['shipments'];
+                $opsName      = $opsData['ops_name'];
+
+                // OPS section header row
+                $sheet->setCellValue('A' . $row, '👷 ' . $opsName);
+                $sheet->mergeCells('A' . $row . ':' . $lastColL . $row);
+                $opsHeaderStyle = [
+                    'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                   'startColor' => ['rgb' => '2F5496']],
+                ];
+                $sheet->getStyle('A' . $row . ':' . $lastColL . $row)->applyFromArray($opsHeaderStyle);
+                $row++;
+
+                // Column headers for this section
+                $col = 1;
+                foreach ($headers as $h) {
+                    $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                    $sheet->setCellValue($colL . $row, $h);
+                    $col++;
+                }
+                $colHeaderStyle = [
+                    'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                   'startColor' => ['rgb' => '1E3A5F']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+                ];
+                $sheet->getStyle('A' . $row . ':' . $lastColL . $row)->applyFromArray($colHeaderStyle);
+                $row++;
+
+                $dataStartRow = $row;
+
+                // Data rows
+                $no          = 1;
+                $opsByGroup  = array_fill_keys(array_column($costGroups, 'id'), 0);
+                $opsUngrouped = 0;
+                $opsTotalSum = 0;
+
+                foreach ($opsShipments as $s) {
+                    $sid      = $s['id'];
+                    $rowTotal = 0;
+
+                    $sheet->setCellValue('A' . $row, $no++);
+                    $sheet->setCellValue('B' . $row, $s['active_date'] ? date('d/m/Y', strtotime($s['active_date'])) : '');
+                    $sheet->setCellValue('C' . $row, $s['company_name'] ?? '');
+                    $sheet->setCellValue('D' . $row, $s['hawb'] ?? '');
+                    $sheet->setCellValue('E' . $row, $s['cd_numbers'] ?? '');
+                    $sheet->setCellValue('F' . $row, (int)$s['packages']);
+                    $sheet->setCellValue('G' . $row, (float)$s['weight']);
+
+                    $cgColIdx = $fixedCols + 1;
+                    foreach ($costGroups as $cg) {
+                        $amount = (float)($costsByOpsShipment[$opsId][$sid][$cg['id']] ?? 0);
+                        $colL   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                        $sheet->setCellValue($colL . $row, $amount > 0 ? $amount : '');
+                        $sheet->getStyle($colL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                        $rowTotal            += $amount;
+                        $opsByGroup[$cg['id']] += $amount;
+                        $grandByGroup[$cg['id']] += $amount;
+                        $cgColIdx++;
+                    }
+
+                    $ug = (float)($costsByOpsShipment[$opsId][$sid]['ungrouped'] ?? 0);
+                    $rowTotal     += $ug;
+                    $opsUngrouped += $ug;
+                    $grandUngrouped += $ug;
+                    if ($hasUngrouped) {
+                        $ugColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                        $sheet->setCellValue($ugColL . $row, $ug > 0 ? $ug : '');
+                        $sheet->getStyle($ugColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                        $cgColIdx++;
+                    }
+
+                    $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                    $noteColL  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx + 1);
+                    $sheet->setCellValue($totalColL . $row, $rowTotal > 0 ? $rowTotal : '');
+                    $sheet->getStyle($totalColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                    $sheet->setCellValue($noteColL . $row, $s['remark'] ?? '');
+
+                    $opsTotalSum  += $rowTotal;
+                    $grandTotal   += $rowTotal;
+                    $row++;
+                }
+
+                // Subtotal row for this OPS
+                $sheet->setCellValue('A' . $row, 'Subtotal: ' . $opsName);
+                $sheet->mergeCells('A' . $row . ':G' . $row);
+                $cgColIdx = $fixedCols + 1;
+                foreach ($costGroups as $cg) {
+                    $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                    $sheet->setCellValue($colL . $row, $opsByGroup[$cg['id']]);
+                    $sheet->getStyle($colL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                    $cgColIdx++;
+                }
+                if ($hasUngrouped) {
+                    $ugColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                    $sheet->setCellValue($ugColL . $row, $opsUngrouped);
+                    $sheet->getStyle($ugColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                    $cgColIdx++;
+                }
+                $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($totalColL . $row, $opsTotalSum);
+                $sheet->getStyle($totalColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+
+                $subtotalStyle = [
+                    'font' => ['bold' => true],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                               'startColor' => ['rgb' => 'D9E1F2']],
+                ];
+                $sheet->getStyle('A' . $row . ':' . $lastColL . $row)->applyFromArray($subtotalStyle);
+                $row += 2; // blank row between OPS sections
+            }
+
+            // Grand Total row
+            $sheet->setCellValue('A' . $row, 'GRAND TOTAL');
+            $sheet->mergeCells('A' . $row . ':G' . $row);
+            $cgColIdx = $fixedCols + 1;
+            foreach ($costGroups as $cg) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($colL . $row, $grandByGroup[$cg['id']]);
+                $sheet->getStyle($colL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                $cgColIdx++;
+            }
+            if ($hasUngrouped) {
+                $ugColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+                $sheet->setCellValue($ugColL . $row, $grandUngrouped);
+                $sheet->getStyle($ugColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+                $cgColIdx++;
+            }
+            $totalColL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cgColIdx);
+            $sheet->setCellValue($totalColL . $row, $grandTotal);
+            $sheet->getStyle($totalColL . $row)->getNumberFormat()->setFormatCode($numFmt);
+
+            $grandStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                           'startColor' => ['rgb' => '1E3A5F']],
+            ];
+            $sheet->getStyle('A' . $row . ':' . $lastColL . $row)->applyFromArray($grandStyle);
+
+            // Auto-size columns
+            for ($i = 1; $i <= $totalCols; $i++) {
+                $colL = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                $sheet->getColumnDimension($colL)->setAutoSize(true);
+            }
+
+            $filename = 'bao-cao-chi-phi-ops-' . date('Ymd') . '.xlsx';
+            self::sendDownload($spreadsheet, $filename);
+        } catch (Exception $e) {
+            error_log('[ExcelExport::exportOpsCosts] ' . $e->getMessage());
+            http_response_code(500);
+            echo 'Lỗi xuất file Excel: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+        }
+    }
+
+    /**
      * Xuất báo cáo danh sách lô hàng ra file Excel.
      *
      * @param array $rows Dữ liệu lô hàng (kết quả từ ReportController::export())
