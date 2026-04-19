@@ -143,7 +143,7 @@ class ReportController {
                    GROUP_CONCAT(DISTINCT cd.cd_number ORDER BY cd.id SEPARATOR ', ') as cd_numbers
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
-            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
+            LEFT JOIN shipment_customs cd ON cd.shipment_id = s.id
             WHERE $whereStr
             GROUP BY s.id
             ORDER BY s.active_date ASC, s.id ASC
@@ -245,7 +245,7 @@ class ReportController {
                    u.full_name   as ops_name
             FROM shipments s
             LEFT JOIN customers c ON s.customer_id = c.id
-            LEFT JOIN customs_declarations cd ON cd.shipment_id = s.id
+            LEFT JOIN shipment_customs cd ON cd.shipment_id = s.id
             JOIN shipment_costs sc ON sc.shipment_id = s.id AND sc.source = 'ops'
             JOIN users u ON u.id = sc.created_by AND u.role = 'ops' AND u.is_active = 1
             WHERE $whereStr
