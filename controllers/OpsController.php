@@ -247,9 +247,9 @@ class OpsController {
             LEFT JOIN delivery_trip_items dti ON dt.id = dti.trip_id
             LEFT JOIN shipments s ON dti.shipment_id = s.id
             LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE dt.trip_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             GROUP BY dt.id
-            ORDER BY dt.id DESC
-            LIMIT 10
+            ORDER BY dt.trip_date DESC, dt.id DESC
         ")->fetchAll();
 
         $viewTitle = 'In Biên Bản Giao Hàng';
@@ -260,6 +260,40 @@ class OpsController {
     // Alias cho index.php gọi ops.create_trip
     public function createTrip() {
         $this->trip();
+    }
+
+    // Xoá delivery trip (AJAX POST)
+    public function deleteTrip() {
+        header('Content-Type: application/json');
+        $id = (int)($_POST['id'] ?? 0);
+        if (!$id) { echo json_encode(['ok' => false, 'msg' => 'Thiếu ID']); exit; }
+
+        $db = getDB();
+
+        $role   = $_SESSION['role'] ?? '';
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+
+        $trip = $db->prepare("SELECT * FROM delivery_trips WHERE id = ?");
+        $trip->execute([$id]);
+        $tripRow = $trip->fetch();
+
+        if (!$tripRow) { echo json_encode(['ok' => false, 'msg' => 'Không tìm thấy']); exit; }
+        if ($role !== 'admin' && (int)$tripRow['ops_id'] !== $userId) {
+            echo json_encode(['ok' => false, 'msg' => 'Không có quyền xoá']); exit;
+        }
+
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM delivery_trip_items WHERE trip_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM delivery_trips WHERE id = ?")->execute([$id]);
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            echo json_encode(['ok' => false, 'msg' => 'Lỗi xoá dữ liệu']); exit;
+        }
+
+        echo json_encode(['ok' => true]);
+        exit;
     }
 
     // AJAX: lấy danh sách lô hàng waiting_pickup theo customer_id
