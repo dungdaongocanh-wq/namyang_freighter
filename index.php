@@ -129,6 +129,11 @@ case 'cs.cancel':
         (new OpsController())->printMultiDeliveryNote();
         break;
 
+    case 'ops.delete_trip':
+        requireRole(['ops', 'admin']);
+        (new OpsController())->deleteTrip();
+        break;
+
     case 'ops.save_costs_modal':
         requireRole(['ops', 'admin']);
         (new OpsController())->saveCostsModal();

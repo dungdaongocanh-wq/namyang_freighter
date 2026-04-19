@@ -66,29 +66,115 @@
 </div>
 
 <!-- Biên bản gần đây -->
-<?php if (!empty($recentNotes)): ?>
+<?php if (!empty($recentNotes)):
+    $notesByDate = [];
+    foreach ($recentNotes as $n) {
+        $day = $n['trip_date'];
+        $notesByDate[$day][] = $n;
+    }
+    $today = date('Y-m-d');
+?>
 <div class="mobile-card card">
   <div class="card-body">
     <h6 class="fw-bold mb-3">📋 Biên bản gần đây</h6>
-    <?php foreach ($recentNotes as $n): ?>
-    <div class="d-flex justify-content-between align-items-center p-2 mb-2 rounded-2"
-         style="background:#f8fafc">
-      <div>
-        <div class="fw-semibold small">DN-<?= str_pad($n['id'], 4, '0', STR_PAD_LEFT) ?></div>
-        <div style="font-size:0.75rem;color:#64748b">
-          🏢 <?= htmlspecialchars($n['company_name'] ?? '') ?> ·
-          🚛 <?= htmlspecialchars($n['note'] ?? '') ?> ·
-          📅 <?= date('d/m/Y', strtotime($n['trip_date'])) ?>
-          (<?= $n['item_count'] ?> lô)
-        </div>
+
+    <?php foreach ($notesByDate as $day => $dayNotes):
+        $isToday  = ($day === $today);
+        $dayLabel = $isToday ? '📅 Hôm nay — ' . date('d/m/Y', strtotime($day))
+                              : '📅 ' . date('d/m/Y', strtotime($day));
+    ?>
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center px-2 py-1 rounded-2 mb-2"
+           style="background:<?= $isToday ? '#e8f4fd' : '#f1f5f9' ?>;cursor:pointer"
+           onclick="toggleDayGroup('day-<?= $day ?>')">
+        <span class="fw-semibold small <?= $isToday ? 'text-primary' : 'text-secondary' ?>">
+          <?= $dayLabel ?> <span class="badge <?= $isToday ? 'bg-primary' : 'bg-secondary' ?> ms-1"><?= count($dayNotes) ?></span>
+        </span>
+        <span id="arrow-day-<?= $day ?>"><?= $isToday ? '▲' : '▼' ?></span>
       </div>
-      <a href="<?= BASE_URL ?>/?page=ops.print_multi_delivery_note&trip_id=<?= $n['id'] ?>"
-         target="_blank"
-         class="btn btn-sm btn-outline-secondary">🖨️ In lại</a>
+
+      <div id="day-<?= $day ?>" style="<?= $isToday ? '' : 'display:none' ?>">
+        <?php foreach ($dayNotes as $n): ?>
+        <div class="d-flex justify-content-between align-items-center p-2 mb-2 rounded-2"
+             id="note-row-<?= $n['id'] ?>"
+             style="background:#f8fafc">
+          <div>
+            <div class="fw-semibold small">DN-<?= str_pad($n['id'], 4, '0', STR_PAD_LEFT) ?></div>
+            <div style="font-size:0.75rem;color:#64748b">
+              🏢 <?= htmlspecialchars($n['company_name'] ?? '') ?> ·
+              🚛 <?= htmlspecialchars($n['note'] ?? '') ?> ·
+              📅 <?= date('d/m/Y', strtotime($n['trip_date'])) ?>
+              (<?= $n['item_count'] ?> lô)
+            </div>
+          </div>
+          <div class="d-flex gap-1 align-items-center">
+            <a href="<?= BASE_URL ?>/?page=ops.print_multi_delivery_note&trip_id=<?= $n['id'] ?>"
+               target="_blank"
+               class="btn btn-sm btn-outline-secondary">🖨️ In lại</a>
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    onclick="deleteNote(<?= $n['id'] ?>)"
+                    title="Xoá biên bản này">🗑️</button>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
     </div>
     <?php endforeach; ?>
+
   </div>
 </div>
+
+<script>
+function toggleDayGroup(id) {
+  const el    = document.getElementById(id);
+  const arrow = document.getElementById('arrow-' + id);
+  if (!el) return;
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    if (arrow) arrow.textContent = '▲';
+  } else {
+    el.style.display = 'none';
+    if (arrow) arrow.textContent = '▼';
+  }
+}
+
+function deleteNote(id) {
+  if (!confirm('Xoá biên bản này?')) return;
+  fetch('<?= BASE_URL ?>/?page=ops.delete_trip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'id=' + encodeURIComponent(id)
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const row = document.getElementById('note-row-' + id);
+        if (!row) return;
+        // Find the parent day group container
+        const dayContent = row.closest('[id^="day-"]');
+        row.remove();
+        if (dayContent) {
+          const remaining = dayContent.querySelectorAll('[id^="note-row-"]').length;
+          // Update badge in the header (sibling of dayContent)
+          const header = dayContent.previousElementSibling;
+          if (header) {
+            const badge = header.querySelector('.badge');
+            if (badge) badge.textContent = remaining;
+          }
+          // Hide the entire group (header + content) if no rows remain
+          if (remaining === 0) {
+            const group = dayContent.closest('.mb-3');
+            if (group) group.style.display = 'none';
+          }
+        }
+      } else {
+        alert(data.msg || 'Xoá thất bại');
+      }
+    })
+    .catch(() => alert('Lỗi kết nối'));
+}
+</script>
 <?php endif; ?>
 
 <script>
