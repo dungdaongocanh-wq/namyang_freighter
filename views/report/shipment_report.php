@@ -3,7 +3,7 @@ $dateFrom   = $_GET['date_from']   ?? '';
 $dateTo     = $_GET['date_to']     ?? '';
 $month      = $_GET['month']       ?? '';
 $customerId = (int)($_GET['customer_id'] ?? 0) ?: null;
-$filtered   = $dateFrom || $dateTo || $customerId;
+$filtered   = $dateFrom || $dateTo || $month || $customerId;
 
 // Check ungrouped
 $hasUngrouped = false;

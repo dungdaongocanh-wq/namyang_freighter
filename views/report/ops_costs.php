@@ -3,7 +3,7 @@ $dateFrom  = $_GET['date_from']    ?? '';
 $dateTo    = $_GET['date_to']      ?? '';
 $month     = $_GET['month']        ?? '';
 $opsUserId = (int)($_GET['ops_user_id'] ?? 0) ?: null;
-$filtered  = $dateFrom || $dateTo || $opsUserId;
+$filtered  = $dateFrom || $dateTo || $month || $opsUserId;
 
 // Grand total helpers
 $grandTotalByGroup = [];
@@ -111,7 +111,7 @@ foreach ($costsByOpsShipment as $opsId => $shipCosts) {
         $ug = (float)($costsByOpsShipment[$opsId][$sid]['ungrouped'] ?? 0);
         $opsUngrouped += $ug;
         $grandUngrouped += $ug;
-        $rowTotal = array_sum(array_column($costGroups, 'id') ? [] : []) + $ug;
+        $rowTotal = $ug;
         foreach ($costGroups as $cg) {
             $rowTotal += (float)($costsByOpsShipment[$opsId][$sid][$cg['id']] ?? 0);
         }
