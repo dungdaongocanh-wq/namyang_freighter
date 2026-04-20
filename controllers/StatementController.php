@@ -81,7 +81,7 @@ class StatementController {
                 SELECT sc.shipment_id, sc.amount,
                        COALESCE(qi.cost_group_id, NULL) as cost_group_id
                 FROM shipment_costs sc
-                LEFT JOIN quotation_items qi ON sc.source = 'quotation' AND qi.description = sc.cost_name
+                LEFT JOIN quotation_items qi ON sc.quotation_item_id = qi.id
                 WHERE sc.shipment_id IN ($inPlaceholders)
                   AND sc.source IN ('kt','quotation','manual','auto')
             ");
@@ -159,7 +159,7 @@ class StatementController {
                 SELECT sc.shipment_id, sc.amount,
                        COALESCE(qi.cost_group_id, NULL) as cost_group_id
                 FROM shipment_costs sc
-                LEFT JOIN quotation_items qi ON sc.source = 'quotation' AND qi.description = sc.cost_name
+                LEFT JOIN quotation_items qi ON sc.quotation_item_id = qi.id
                 WHERE sc.shipment_id IN ($inPlaceholders)
                   AND sc.source IN ('kt','quotation','manual','auto')
             ");
