@@ -213,6 +213,16 @@ case 'cs.cancel':
         $controller->invoice();
         break;
 
+    case 'accounting.resubmit':
+        requireRole('accounting', 'admin');
+        (new AccountingController())->resubmit();
+        break;
+
+    case 'accounting.close_month':
+        requireRole('accounting', 'admin');
+        (new AccountingController())->closeMonth();
+        break;
+
     // ===== Customer =====
     case 'customer.dashboard':
         requireRole(['customer', 'cs', 'admin']);

@@ -611,7 +611,7 @@ public function deleteShipment() {
                 ")->execute([$id, $reason, $_SESSION['user_id']]);
             } catch (Exception $e) {}
 
-            header('Location: ' . BASE_URL . '/?page=cs.list&msg=deleted');
+            header('Location: ' . BASE_URL . '/?page=cs.list&msg=cancelled');
             exit;
         }
 
