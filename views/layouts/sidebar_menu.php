@@ -1,11 +1,11 @@
 <?php
 $role        = $_SESSION['role'] ?? '';
-$currentPage = $_GET['page'] ?? '';
+$currentPage = $_GET['page']    ?? '';
 
 function sidebarLink($page, $icon, $label, $currentPage) {
-    $active = ($currentPage === $page) ? 'active' : '');
+    $active = ($currentPage === $page) ? 'active' : '';
     $url    = BASE_URL . '/?page=' . $page;
-    echo "<a href=\"$url\" class=\"nav-link $active\"><i class=\"bi bi-$icon\"></i> $label</a>";
+    echo "<a href=\"$url\" class=\"nav-link $active\"><i class=\"bi bi-$icon\"></i> <span>$label</span></a>";
 }
 ?>
 
