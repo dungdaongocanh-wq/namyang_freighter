@@ -79,7 +79,7 @@ class AdminController {
             if ($password) {
                 $db->prepare("
                     UPDATE users SET username=?, full_name=?, role=?, customer_id=?, is_active=?,
-                                    password_hash=? WHERE id=?
+                                    password=? WHERE id=?
                 ")->execute([$username, $fullName, $role, $customerId, $isActive,
                               password_hash($password, PASSWORD_DEFAULT), $id]);
             } else {
@@ -90,7 +90,7 @@ class AdminController {
         } else {
             $hash = password_hash($password ?: 'changeme', PASSWORD_DEFAULT);
             $db->prepare("
-                INSERT INTO users (username, password_hash, full_name, role, customer_id, is_active)
+                INSERT INTO users (username, password, full_name, role, customer_id, is_active)
                 VALUES (?,?,?,?,?,?)
             ")->execute([$username, $hash, $fullName, $role, $customerId, $isActive]);
         }
