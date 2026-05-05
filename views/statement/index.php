@@ -63,7 +63,7 @@ $role = $_SESSION['role'] ?? '';
        style="border-radius:12px 12px 0 0">
     <h6 class="mb-0 fw-bold">📊 Bảng kê chi tiết chi phí</h6>
     <span class="badge bg-primary ms-1"><?= count($shipments) ?></span>
-    <?php if ($dateFrom && $dateTo): ?>
+    <?php if (!empty($dateFrom) && !empty($dateTo)): ?>
     <span class="text-muted small ms-2">
       <?= date('d/m/Y', strtotime($dateFrom)) ?> – <?= date('d/m/Y', strtotime($dateTo)) ?>
     </span>
