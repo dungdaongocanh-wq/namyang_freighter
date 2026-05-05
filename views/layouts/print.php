@@ -90,7 +90,7 @@
 <!-- Nút điều khiển (ẩn khi in) -->
 <div class="print-actions no-print">
   <button class="btn-print" onclick="window.print()">🖨️ In trang</button>
-  <a href="javascript:window.close()" class="btn-close-print">✕ Đóng</a>
+  <button class="btn-close-print" onclick="closePrintPage()">✕ Đóng</button>
 </div>
 
 <!-- Nội dung trang in -->
@@ -99,6 +99,16 @@
 </div>
 
 <script>
+// Đóng trang: thử window.close() trước, fallback về history.back()
+function closePrintPage() {
+  // window.close() chỉ hoạt động nếu tab được mở bằng window.open()
+  if (window.opener !== null || window.history.length <= 1) {
+    window.close();
+  } else {
+    window.history.back();
+  }
+}
+
 // Tự mở hộp thoại in nếu URL có ?autoprint=1
 if (new URLSearchParams(location.search).get('autoprint') === '1') {
   window.onload = function() { window.print(); };
