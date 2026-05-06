@@ -17,7 +17,7 @@ function sidebarLink($page, $icon, $label, $currentPage) {
 <?php sidebarLink('cs.customs_upload',     'file-earmark-text',       'Upload tờ khai',    $currentPage); ?>
 <?php sidebarLink('shared.delivery_board', 'kanban',                  'Bảng giao hàng',    $currentPage); ?>
 <?php sidebarLink('statement.index',       'bar-chart-line',          'Bảng kê chi tiết',  $currentPage); ?>
-<?php sidebarLink('report.export',         'file-earmark-arrow-down', 'Xuất báo cáo',      $currentPage); ?>
+<?php sidebarLink('customer.pending_approval', 'bell',                  'Duyệt chi phí',     $currentPage); ?>
 <?php endif; ?>
 
 <?php if ($role === 'ops' || $role === 'admin'): ?>

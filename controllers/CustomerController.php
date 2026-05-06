@@ -299,7 +299,7 @@ class CustomerController {
                 $stmt = $db->prepare("
                     SELECT s.*,
                            c.company_name, c.customer_code,
-                           COALESCE(SUM(sc.amount),0) as total_cost
+                           COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost
                     FROM shipments s
                     LEFT JOIN customers c ON s.customer_id = c.id
                     LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
@@ -312,7 +312,7 @@ class CustomerController {
                 $stmt = $db->prepare("
                     SELECT s.*,
                            c.company_name, c.customer_code,
-                           COALESCE(SUM(sc.amount),0) as total_cost
+                           COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost
                     FROM shipments s
                     LEFT JOIN customers c ON s.customer_id = c.id
                     LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
@@ -328,7 +328,7 @@ class CustomerController {
                 exit;
             }
 
-            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
+            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? AND source != 'ops' ORDER BY id");
             $costs->execute([$id]);
             $costs = $costs->fetchAll();
 
@@ -390,7 +390,7 @@ class CustomerController {
                 $stmt = $db->prepare("
                     SELECT s.*,
                            c.company_name, c.customer_code,
-                           COALESCE(SUM(sc.amount),0) as total_cost
+                           COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost
                     FROM shipments s
                     LEFT JOIN customers c ON s.customer_id = c.id
                     LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
@@ -403,7 +403,7 @@ class CustomerController {
                 $stmt = $db->prepare("
                     SELECT s.*,
                            c.company_name, c.customer_code,
-                           COALESCE(SUM(sc.amount),0) as total_cost
+                           COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost
                     FROM shipments s
                     LEFT JOIN customers c ON s.customer_id = c.id
                     LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
@@ -419,7 +419,7 @@ class CustomerController {
                 exit;
             }
 
-            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? ORDER BY id");
+            $costs = $db->prepare("SELECT * FROM shipment_costs WHERE shipment_id=? AND source != 'ops' ORDER BY id");
             $costs->execute([$id]);
             $costs = $costs->fetchAll();
 
@@ -478,7 +478,7 @@ class CustomerController {
             $stmt = $db->query("
                 SELECT s.*,
                        c.company_name, c.customer_code,
-                       COALESCE(SUM(sc.amount),0) as total_cost,
+                       COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost,
                        COUNT(sc.id) as cost_lines
                 FROM shipments s
                 LEFT JOIN customers c ON s.customer_id = c.id
@@ -492,7 +492,7 @@ class CustomerController {
             $customerId = $_SESSION['customer_id'];
             $stmt = $db->prepare("
                 SELECT s.*,
-                       COALESCE(SUM(sc.amount),0) as total_cost,
+                       COALESCE(SUM(CASE WHEN sc.source != 'ops' THEN sc.amount ELSE 0 END),0) as total_cost,
                        COUNT(sc.id) as cost_lines
                 FROM shipments s
                 LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
