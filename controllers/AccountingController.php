@@ -255,12 +255,12 @@ public function rejected() {
         FROM shipments s
         LEFT JOIN customers c ON s.customer_id = c.id
         LEFT JOIN shipment_costs sc ON s.id = sc.shipment_id
-        LEFT JOIN (
-            SELECT shipment_id, reason, created_at
-            FROM approval_history
-            WHERE action = 'rejected'
+        LEFT JOIN approval_history ah ON ah.id = (
+            SELECT id FROM approval_history
+            WHERE shipment_id = s.id AND action = 'rejected'
             ORDER BY created_at DESC
-        ) ah ON ah.shipment_id = s.id
+            LIMIT 1
+        )
         WHERE s.status = 'rejected'
         GROUP BY s.id
         ORDER BY s.updated_at DESC

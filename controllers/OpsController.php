@@ -194,7 +194,8 @@ class OpsController {
                 $shipIds    = $_POST['shipment_ids'] ?? [];
 
                 if (empty($shipIds)) {
-                    $msg = 'error:Chọn ít nhất 1 lô hàng!';
+                    header('Location: ' . BASE_URL . '/?page=ops.trip&err=no_shipment');
+                    exit;
                 } else {
                     $stmt = $db->prepare("INSERT INTO delivery_trips (driver_id, ops_id, trip_date, note, status) VALUES (NULL,?,CURDATE(),?,'pending')");
                     $stmt->execute([$_SESSION['user_id'], $carrier]);
@@ -220,7 +221,8 @@ class OpsController {
                 $note     = trim($_POST['note'] ?? '');
 
                 if (empty($shipIds)) {
-                    $msg = 'error:Chọn ít nhất 1 lô hàng!';
+                    header('Location: ' . BASE_URL . '/?page=ops.trip&err=no_shipment');
+                    exit;
                 } else {
                     $stmt = $db->prepare("INSERT INTO delivery_trips (driver_id, ops_id, trip_date, note, status) VALUES (?,?,?,?,'pending')");
                     $stmt->execute([$driverId, $_SESSION['user_id'], $tripDate, $note]);
